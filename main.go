@@ -206,6 +206,7 @@ func getLeastSignificantFirstBitIndex(bitboard uint64) int {
 
 	return countBits((bitboard & (^bitboard + 1)) - 1)
 }
+
 /*********************************************************\
 ===========================================================
 
@@ -220,11 +221,11 @@ func printBitboard(bitboard uint64) {
 	for rank := range 8 {
 		for file := range 8 {
 			// convert file & rank into square index
-			square := rank * 8 + file
+			square := rank*8 + file
 
 			// print ranks
 			if file == 0 {
-				fmt.Printf("  %d  ", 8 - rank)
+				fmt.Printf("  %d  ", 8-rank)
 			}
 			// print bit state (either 1 or 0)
 			if getBit(bitboard, square) != 0 {
@@ -254,55 +255,55 @@ func printBitboard(bitboard uint64) {
 /*
           not A file
 
-  8   0  1  1  1  1  1  1  1 
-  7   0  1  1  1  1  1  1  1 
-  6   0  1  1  1  1  1  1  1 
-  5   0  1  1  1  1  1  1  1 
-  4   0  1  1  1  1  1  1  1 
-  3   0  1  1  1  1  1  1  1 
-  2   0  1  1  1  1  1  1  1 
-  1   0  1  1  1  1  1  1  1 
+  8   0  1  1  1  1  1  1  1
+  7   0  1  1  1  1  1  1  1
+  6   0  1  1  1  1  1  1  1
+  5   0  1  1  1  1  1  1  1
+  4   0  1  1  1  1  1  1  1
+  3   0  1  1  1  1  1  1  1
+  2   0  1  1  1  1  1  1  1
+  1   0  1  1  1  1  1  1  1
 
-      a  b  c  d  e  f  g  h 
+      a  b  c  d  e  f  g  h
 
           not H file
 
-  8   1  1  1  1  1  1  1  0 
-  7   1  1  1  1  1  1  1  0 
-  6   1  1  1  1  1  1  1  0 
-  5   1  1  1  1  1  1  1  0 
-  4   1  1  1  1  1  1  1  0 
-  3   1  1  1  1  1  1  1  0 
-  2   1  1  1  1  1  1  1  0 
-  1   1  1  1  1  1  1  1  0 
+  8   1  1  1  1  1  1  1  0
+  7   1  1  1  1  1  1  1  0
+  6   1  1  1  1  1  1  1  0
+  5   1  1  1  1  1  1  1  0
+  4   1  1  1  1  1  1  1  0
+  3   1  1  1  1  1  1  1  0
+  2   1  1  1  1  1  1  1  0
+  1   1  1  1  1  1  1  1  0
 
-      a  b  c  d  e  f  g  h 
+      a  b  c  d  e  f  g  h
 
 
           not HG file
-  8   1  1  1  1  1  1  0  0 
-  7   1  1  1  1  1  1  0  0 
-  6   1  1  1  1  1  1  0  0 
-  5   1  1  1  1  1  1  0  0 
-  4   1  1  1  1  1  1  0  0 
-  3   1  1  1  1  1  1  0  0 
-  2   1  1  1  1  1  1  0  0 
-  1   1  1  1  1  1  1  0  0 
+  8   1  1  1  1  1  1  0  0
+  7   1  1  1  1  1  1  0  0
+  6   1  1  1  1  1  1  0  0
+  5   1  1  1  1  1  1  0  0
+  4   1  1  1  1  1  1  0  0
+  3   1  1  1  1  1  1  0  0
+  2   1  1  1  1  1  1  0  0
+  1   1  1  1  1  1  1  0  0
 
-      a  b  c  d  e  f  g  h 
+      a  b  c  d  e  f  g  h
 
           not AB file
 
-  8   0  0  1  1  1  1  1  1 
-  7   0  0  1  1  1  1  1  1 
-  6   0  0  1  1  1  1  1  1 
-  5   0  0  1  1  1  1  1  1 
-  4   0  0  1  1  1  1  1  1 
-  3   0  0  1  1  1  1  1  1 
-  2   0  0  1  1  1  1  1  1 
-  1   0  0  1  1  1  1  1  1 
+  8   0  0  1  1  1  1  1  1
+  7   0  0  1  1  1  1  1  1
+  6   0  0  1  1  1  1  1  1
+  5   0  0  1  1  1  1  1  1
+  4   0  0  1  1  1  1  1  1
+  3   0  0  1  1  1  1  1  1
+  2   0  0  1  1  1  1  1  1
+  1   0  0  1  1  1  1  1  1
 
-      a  b  c  d  e  f  g  h 
+      a  b  c  d  e  f  g  h
 */
 
 // All zero file constants
@@ -469,6 +470,18 @@ var knightAttacks = [64]uint64{}
 // king attacks table [square]
 var kingAttacks = [64]uint64{}
 
+// bishop attack masks
+var bishopMasks = [64]uint64{}
+
+// rook attacks mask
+var rookMasks = [64]uint64{}
+
+// bishop attacks table [square][occupancies]
+var bishopAttacks = [64][512]uint64{}
+
+// rook attacks table [square][occupancies]
+var rookAttacks = [64][4096]uint64{}
+
 func maskPawnAttacks(side int, square int) uint64 {
 	// result attacks bitboard
 	var attacks uint64 = 0
@@ -478,18 +491,18 @@ func maskPawnAttacks(side int, square int) uint64 {
 	bitboard = setBit(bitboard, square)
 
 	if side == WHITE {
-		if (bitboard >> 7) & NOT_A_FILE != 0 {
+		if (bitboard>>7)&NOT_A_FILE != 0 {
 			attacks |= bitboard >> 7
 		}
-		if (bitboard >> 9) & NOT_H_FILE != 0 {
+		if (bitboard>>9)&NOT_H_FILE != 0 {
 			attacks |= bitboard >> 9
 		}
 	} else {
 		// a8
-		if (bitboard << 7) & NOT_H_FILE != 0 {
+		if (bitboard<<7)&NOT_H_FILE != 0 {
 			attacks |= bitboard << 7
 		}
-		if (bitboard << 9) & NOT_A_FILE != 0 {
+		if (bitboard<<9)&NOT_A_FILE != 0 {
 			attacks |= bitboard << 9
 		}
 	}
@@ -503,36 +516,36 @@ func maskKnightAttacks(square int) uint64 {
 	bitboard = setBit(bitboard, square)
 
 	// up1 right2
-	if (bitboard >> 6) & NOT_AB_FILE != 0 {
+	if (bitboard>>6)&NOT_AB_FILE != 0 {
 		attacks |= bitboard >> 6
 	}
 	// up2 right1
-	if (bitboard >> 15) & NOT_A_FILE != 0 {
+	if (bitboard>>15)&NOT_A_FILE != 0 {
 		attacks |= bitboard >> 15
 	}
 	// up2 left1
-	if (bitboard >> 17) & NOT_H_FILE != 0 {
+	if (bitboard>>17)&NOT_H_FILE != 0 {
 		attacks |= bitboard >> 17
 	}
 	// up1 left2
-	if (bitboard >> 10) & NOT_HG_FILE != 0 {
+	if (bitboard>>10)&NOT_HG_FILE != 0 {
 		attacks |= bitboard >> 10
 	}
 
 	// down1 left2
-	if (bitboard << 6) & NOT_HG_FILE != 0 {
+	if (bitboard<<6)&NOT_HG_FILE != 0 {
 		attacks |= bitboard << 6
 	}
 	// down2 left1
-	if (bitboard << 15) & NOT_H_FILE != 0 {
+	if (bitboard<<15)&NOT_H_FILE != 0 {
 		attacks |= bitboard << 15
 	}
 	// down2 right1
-	if (bitboard << 17) & NOT_A_FILE != 0 {
+	if (bitboard<<17)&NOT_A_FILE != 0 {
 		attacks |= bitboard << 17
 	}
 	//down1 right 2
-	if (bitboard << 10) & NOT_AB_FILE != 0 {
+	if (bitboard<<10)&NOT_AB_FILE != 0 {
 		attacks |= bitboard << 10
 	}
 
@@ -544,29 +557,29 @@ func maskKingAttacks(square int) uint64 {
 	var bitboard uint64 = 0
 	bitboard = setBit(bitboard, square)
 
-	if (bitboard >> 1) & NOT_H_FILE != 0 {
+	if (bitboard>>1)&NOT_H_FILE != 0 {
 		attacks |= bitboard >> 1
 	}
-	if (bitboard >> 7) & NOT_A_FILE != 0 {
+	if (bitboard>>7)&NOT_A_FILE != 0 {
 		attacks |= bitboard >> 7
 	}
-	if (bitboard >> 9) & NOT_H_FILE != 0 {
+	if (bitboard>>9)&NOT_H_FILE != 0 {
 		attacks |= bitboard >> 9
 	}
-	if bitboard >> 8 != 0 {
+	if bitboard>>8 != 0 {
 		attacks |= bitboard >> 8
 	}
 
-	if (bitboard << 1) & NOT_A_FILE != 0 {
+	if (bitboard<<1)&NOT_A_FILE != 0 {
 		attacks |= bitboard << 1
 	}
-	if (bitboard << 7) & NOT_H_FILE != 0 {
+	if (bitboard<<7)&NOT_H_FILE != 0 {
 		attacks |= bitboard << 7
 	}
-	if (bitboard << 9) & NOT_A_FILE != 0 {
+	if (bitboard<<9)&NOT_A_FILE != 0 {
 		attacks |= bitboard << 9
 	}
-	if bitboard << 8 != 0 {
+	if bitboard<<8 != 0 {
 		attacks |= bitboard << 8
 	}
 
@@ -584,17 +597,17 @@ func maskBishopAttacks(square int) uint64 {
 	tf := square % 8
 
 	// mask relevant bishop occupancy bits
-	for r, f = tr + 1, tf + 1; r <= 6 && f <= 6; r, f = r + 1, f + 1 {
-		attacks |= 1 << uint(r * 8 + f)
+	for r, f = tr+1, tf+1; r <= 6 && f <= 6; r, f = r+1, f+1 {
+		attacks |= 1 << uint(r*8+f)
 	}
-	for r, f = tr + 1, tf - 1; r <= 6 && f >= 1; r, f = r + 1, f - 1 {
-		attacks |= 1 << uint(r * 8 + f)
+	for r, f = tr+1, tf-1; r <= 6 && f >= 1; r, f = r+1, f-1 {
+		attacks |= 1 << uint(r*8+f)
 	}
-	for r, f = tr - 1, tf - 1; r >= 1 && f >= 1; r, f = r - 1, f - 1 {
-		attacks |= 1 << uint(r * 8 + f)
+	for r, f = tr-1, tf-1; r >= 1 && f >= 1; r, f = r-1, f-1 {
+		attacks |= 1 << uint(r*8+f)
 	}
-	for r, f = tr - 1, tf + 1; r >= 1 && f <= 6; r, f = r - 1, f + 1 {
-		attacks |= 1 << uint(r * 8 + f)
+	for r, f = tr-1, tf+1; r >= 1 && f <= 6; r, f = r-1, f+1 {
+		attacks |= 1 << uint(r*8+f)
 	}
 
 	return attacks
@@ -612,16 +625,16 @@ func maskRookAttacks(square int) uint64 {
 
 	// mask relevant rook occupancy bits
 	for r = tr + 1; r <= 6; r++ {
-		attacks |= 1 << uint(r * 8 + tf)
+		attacks |= 1 << uint(r*8+tf)
 	}
 	for r = tr - 1; r >= 1; r-- {
-		attacks |= 1 << uint(r * 8 + tf)
+		attacks |= 1 << uint(r*8+tf)
 	}
 	for f = tf + 1; f <= 6; f++ {
-		attacks |= 1 << uint(tr * 8 + f)
+		attacks |= 1 << uint(tr*8+f)
 	}
 	for f = tf - 1; f >= 1; f-- {
-		attacks |= 1 << uint(tr * 8 + f)
+		attacks |= 1 << uint(tr*8+f)
 	}
 
 	return attacks
@@ -637,27 +650,27 @@ func bishopAttacksOnTheFly(square int, block uint64) uint64 {
 	tf := square % 8
 
 	// mask attacks, if we hit a blocker, don't go any further
-	for r, f = tr + 1, tf + 1; r <= 7 && f <= 7; r, f = r + 1, f + 1 {
-		attacks |= 1 << uint(r * 8 + f)
-		if (1 << uint(r * 8 + f)) & block != 0 {
+	for r, f = tr+1, tf+1; r <= 7 && f <= 7; r, f = r+1, f+1 {
+		attacks |= 1 << uint(r*8+f)
+		if (1<<uint(r*8+f))&block != 0 {
 			break
 		}
 	}
-	for r, f = tr + 1, tf - 1; r <= 7 && f >= 0; r, f = r + 1, f - 1 {
-		attacks |= 1 << uint(r * 8 + f)
-		if (1 << uint(r * 8 + f)) & block != 0 {
+	for r, f = tr+1, tf-1; r <= 7 && f >= 0; r, f = r+1, f-1 {
+		attacks |= 1 << uint(r*8+f)
+		if (1<<uint(r*8+f))&block != 0 {
 			break
 		}
 	}
-	for r, f = tr - 1, tf - 1; r >= 0 && f >= 0; r, f = r - 1, f - 1 {
-		attacks |= 1 << uint(r * 8 + f)
-		if (1 << uint(r * 8 + f)) & block != 0 {
+	for r, f = tr-1, tf-1; r >= 0 && f >= 0; r, f = r-1, f-1 {
+		attacks |= 1 << uint(r*8+f)
+		if (1<<uint(r*8+f))&block != 0 {
 			break
 		}
 	}
-	for r, f = tr - 1, tf + 1; r >= 0 && f <= 7; r, f = r - 1, f + 1 {
-		attacks |= 1 << uint(r * 8 + f)
-		if (1 << uint(r * 8 + f)) & block != 0 {
+	for r, f = tr-1, tf+1; r >= 0 && f <= 7; r, f = r-1, f+1 {
+		attacks |= 1 << uint(r*8+f)
+		if (1<<uint(r*8+f))&block != 0 {
 			break
 		}
 	}
@@ -675,26 +688,26 @@ func rookAttacksOnTheFly(square int, block uint64) uint64 {
 
 	// mask attacks, if we hit a blocker, don't go any further
 	for r = tr + 1; r <= 7; r++ {
-		attacks |= 1 << uint(r * 8 + tf)
-		if (1 << uint(r * 8 + tf)) & block != 0 {
+		attacks |= 1 << uint(r*8+tf)
+		if (1<<uint(r*8+tf))&block != 0 {
 			break
 		}
 	}
 	for r = tr - 1; r >= 0; r-- {
-		attacks |= 1 << uint(r * 8 + tf)
-		if (1 << uint(r * 8 + tf)) & block != 0 {
+		attacks |= 1 << uint(r*8+tf)
+		if (1<<uint(r*8+tf))&block != 0 {
 			break
 		}
 	}
 	for f = tf + 1; f <= 7; f++ {
-		attacks |= 1 << uint(tr * 8 + f)
-		if (1 << uint(tr * 8 + f)) & block != 0 {
+		attacks |= 1 << uint(tr*8+f)
+		if (1<<uint(tr*8+f))&block != 0 {
 			break
 		}
 	}
 	for f = tf - 1; f >= 0; f-- {
-		attacks |= 1 << uint(tr * 8 + f)
-		if (1 << uint(tr * 8 + f)) & block != 0 {
+		attacks |= 1 << uint(tr*8+f)
+		if (1<<uint(tr*8+f))&block != 0 {
 			break
 		}
 	}
@@ -742,7 +755,7 @@ func setOccupancy(
 		attackMask = popBit(attackMask, square)
 
 		// check if bit in variation at idx offset is turned on
-		if occupancyVariation & (1 << idx) != 0 {
+		if occupancyVariation&(1<<idx) != 0 {
 			// populate occupancy map
 			occupancy |= 1 << uint(square)
 		}
@@ -758,7 +771,6 @@ func setOccupancy(
 
 ===========================================================
 \*********************************************************/
-
 
 /*
 A magic number is a a number which will product unique indices for all of our attacks
@@ -806,7 +818,7 @@ func findMagicNumber(square int, bishop int) uint64 {
 		usedAttacks := make([]uint64, 4096)
 
 		// skip bad magic numbers
-		if countBits((attackMask * magicNumber) & 0xff00000000000000) < 6 {
+		if countBits((attackMask*magicNumber)&0xff00000000000000) < 6 {
 			continue
 		}
 
@@ -844,6 +856,81 @@ func initMagicNumbers() {
 	}
 }
 
+/*
+For each square, get the attack mask and number of bits in that
+mask to calculate how many occupancy variations there are.
+Go over each occupancy variation, get the occupancy for that square,
+get the magic index for that square, and set our piece attacks
+table for that square and index to the on the fly attack for the
+occupancy
+*/
+func initSlidersAttacks(bishop int) {
+	// loop over 64 board squares
+	for square := range 64 {
+		// init bishop & rook masks
+		bishopMasks[square] = maskBishopAttacks(square)
+		rookMasks[square] = maskRookAttacks(square)
+
+		// init current mask
+		var attackMask uint64
+		if bishop == 1 {
+			attackMask = bishopMasks[square]
+		} else {
+			attackMask = rookMasks[square]
+		}
+
+		// init num bits in mask
+		numBitsInMask := countBits(attackMask)
+
+		// init occupancy indices
+		occupancyIndices := (1 << numBitsInMask)
+
+		for i := range occupancyIndices {
+			// bishop
+			if bishop == 1 {
+				// init current occupancy
+				occupancy := setOccupancy(i, numBitsInMask, attackMask)
+
+				// init magic index
+				magicIndex := (occupancy * bishopMagicNumbers[square]) >> (64 - bishopRelevantBits[square])
+
+				// init bishop attacks
+				bishopAttacks[square][magicIndex] = bishopAttacksOnTheFly(square, occupancy)
+			} else {
+				// init current occupancy
+				occupancy := setOccupancy(i, numBitsInMask, attackMask)
+
+				// init magic index
+				magicIndex := (occupancy * rookMagicNumbers[square]) >> (64 - rookRelevantBits[square])
+
+				// init bishop attacks
+				rookAttacks[square][magicIndex] = rookAttacksOnTheFly(square, occupancy)
+			}
+		}
+	}
+}
+
+/*
+These just get the magic hash index so we can look up attacks quickly
+*/
+func getBishopAttacks(square int, occupancy uint64) uint64 {
+	// get bishop attacks assuming current board occupancy
+	occupancy &= bishopMasks[square]
+	occupancy *= bishopMagicNumbers[square]
+	occupancy >>= 64 - bishopRelevantBits[square]
+
+	return bishopAttacks[square][occupancy]
+}
+
+func getRookAttacks(square int, occupancy uint64) uint64 {
+	// get bishop attacks assuming current board occupancy
+	occupancy &= rookMasks[square]
+	occupancy *= rookMagicNumbers[square]
+	occupancy >>= 64 - rookRelevantBits[square]
+
+	return rookAttacks[square][occupancy]
+}
+
 /*********************************************************\
 ===========================================================
 
@@ -856,9 +943,12 @@ func initMagicNumbers() {
 func initAll() {
 	initLeapersAttacks()
 
+	initSlidersAttacks(BISHOP)
+	initSlidersAttacks(ROOK)
 	// hard coded now
 	//initMagicNumbers()
 }
+
 /*********************************************************\
 ===========================================================
 
@@ -868,6 +958,19 @@ func initAll() {
 \*********************************************************/
 
 func main() {
-	// init all
 	initAll()
+
+	var occupancy uint64 = 0
+	occupancy = setBit(occupancy, c5)
+	occupancy = setBit(occupancy, f2)
+	occupancy = setBit(occupancy, g7)
+	occupancy = setBit(occupancy, b2)
+	occupancy = setBit(occupancy, g5)
+	occupancy = setBit(occupancy, e2)
+	occupancy = setBit(occupancy, e7)
+	printBitboard(occupancy)
+
+	printBitboard(getBishopAttacks(d4, occupancy))
+
+	printBitboard(getRookAttacks(e5, occupancy))
 }

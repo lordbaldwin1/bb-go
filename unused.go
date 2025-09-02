@@ -1,6 +1,9 @@
 package main
 
-// Suppress unused constant warnings
+/*
+This is here so that Go's static check doesn't give me warnings
+for unused constants or functions in the editor :)
+*/
 var _ = a8
 var _ = b8
 var _ = c8
@@ -73,3 +76,26 @@ var _ = bishopRelevantBits[1]
 var _ = rookRelevantBits[1]
 var _ = bishopMagicNumbers[1]
 var _ = rookMagicNumbers[1]
+
+// Suppress unused function warnings
+var _ = findMagicNumber
+var _ = initMagicNumbers
+var _ = printBitboard
+var _ = setOccupancy
+var _ = bishopAttacksOnTheFly
+var _ = rookAttacksOnTheFly
+var _ = maskBishopAttacks
+var _ = maskRookAttacks
+var _ = maskPawnAttacks
+var _ = maskKnightAttacks
+var _ = maskKingAttacks
+var _ = getRandom32BitUnsignedNumber
+var _ = getRandom64BitUnsignedNumber
+var _ = generateMagicNumber
+var _ = getBit
+var _ = setBit
+var _ = popBit
+var _ = countBits
+var _ = getLeastSignificantFirstBitIndex
+var _ = initLeapersAttacks
+var _ = initAll
