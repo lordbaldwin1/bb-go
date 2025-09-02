@@ -1,0 +1,873 @@
+package main
+
+import "fmt"
+
+// board squares
+const (
+	a8 = 0
+	b8 = 1
+	c8 = 2
+	d8 = 3
+	e8 = 4
+	f8 = 5
+	g8 = 6
+	h8 = 7
+)
+
+const (
+	a7 = 8
+	b7 = 9
+	c7 = 10
+	d7 = 11
+	e7 = 12
+	f7 = 13
+	g7 = 14
+	h7 = 15
+)
+
+const (
+	a6 = 16
+	b6 = 17
+	c6 = 18
+	d6 = 19
+	e6 = 20
+	f6 = 21
+	g6 = 22
+	h6 = 23
+)
+
+const (
+	a5 = 24
+	b5 = 25
+	c5 = 26
+	d5 = 27
+	e5 = 28
+	f5 = 29
+	g5 = 30
+	h5 = 31
+)
+
+const (
+	a4 = 32
+	b4 = 33
+	c4 = 34
+	d4 = 35
+	e4 = 36
+	f4 = 37
+	g4 = 38
+	h4 = 39
+)
+
+const (
+	a3 = 40
+	b3 = 41
+	c3 = 42
+	d3 = 43
+	e3 = 44
+	f3 = 45
+	g3 = 46
+	h3 = 47
+)
+
+const (
+	a2 = 48
+	b2 = 49
+	c2 = 50
+	d2 = 51
+	e2 = 52
+	f2 = 53
+	g2 = 54
+	h2 = 55
+)
+
+const (
+	a1 = 56
+	b1 = 57
+	c1 = 58
+	d1 = 59
+	e1 = 60
+	f1 = 61
+	g1 = 62
+	h1 = 63
+)
+
+const WHITE = 0
+const BLACK = 1
+
+const ROOK = 0
+const BISHOP = 1
+
+var SquareToBigInt = []uint64{
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+	32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+	48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+}
+
+// for future use
+var SquareToCoordinates = []string{
+	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+	"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+	"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+	"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+	"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+	"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+	"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+}
+
+/*********************************************************\
+===========================================================
+
+                      Random numbers
+
+===========================================================
+\*********************************************************/
+
+// pseudo random number state
+var randomState uint64 = 1804289383
+
+// generate 32-bit pseudo legal number
+func getRandom32BitUnsignedNumber() uint32 {
+	// get current randomState
+	num := uint32(randomState)
+
+	// XOR shift algorithm
+	num ^= num << 13
+	num ^= num >> 17
+	num ^= num << 5
+
+	// update random number randomState
+	randomState = uint64(num)
+
+	return num
+}
+
+// generate 64-bit pseudo legal numbers
+func getRandom64BitUnsignedNumber() uint64 {
+	// define 4 random numbers
+	var n1, n2, n3, n4 uint64
+
+	// init random numbers slicing 16 bits from MS1B side
+	n1 = uint64(getRandom32BitUnsignedNumber() & 0xffff)
+	n2 = uint64(getRandom32BitUnsignedNumber() & 0xffff)
+	n3 = uint64(getRandom32BitUnsignedNumber() & 0xffff)
+	n4 = uint64(getRandom32BitUnsignedNumber() & 0xffff)
+
+	return n1 | (n2 << 16) | (n3 << 32) | (n4 << 48)
+}
+
+// generate magic number candidate
+func generateMagicNumber() uint64 {
+	n1 := getRandom64BitUnsignedNumber()
+	n2 := getRandom64BitUnsignedNumber()
+	n3 := getRandom64BitUnsignedNumber()
+	return n1 & n2 & n3
+}
+
+/*********************************************************\
+===========================================================
+
+                    Bit manipulations
+
+===========================================================
+\*********************************************************/
+
+// Bit manipulation functions for bitboards
+func getBit(bitboard uint64, square int) uint64 {
+	return bitboard & (1 << SquareToBigInt[square])
+}
+
+func setBit(bitboard uint64, square int) uint64 {
+	return bitboard | (1 << SquareToBigInt[square])
+}
+
+func popBit(bitboard uint64, square int) uint64 {
+	if getBit(bitboard, square) != 0 {
+		return bitboard ^ (1 << SquareToBigInt[square])
+	}
+	return bitboard
+}
+
+func countBits(bitboard uint64) int {
+	count := 0
+
+	for bitboard > 0 {
+		// reset least significant first bit
+		bitboard &= bitboard - 1
+		count++
+	}
+	return count
+}
+func getLeastSignificantFirstBitIndex(bitboard uint64) int {
+	if bitboard == 0 {
+		return -1
+	}
+
+	return countBits((bitboard & (^bitboard + 1)) - 1)
+}
+/*********************************************************\
+===========================================================
+
+                    Input/Output
+
+===========================================================
+\*********************************************************/
+
+func printBitboard(bitboard uint64) {
+	fmt.Println()
+
+	for rank := range 8 {
+		for file := range 8 {
+			// convert file & rank into square index
+			square := rank * 8 + file
+
+			// print ranks
+			if file == 0 {
+				fmt.Printf("  %d  ", 8 - rank)
+			}
+			// print bit state (either 1 or 0)
+			if getBit(bitboard, square) != 0 {
+				fmt.Print(" 1 ")
+			} else {
+				fmt.Print(" 0 ")
+			}
+		}
+		fmt.Println()
+	}
+
+	// print board files
+	fmt.Println("\n      a  b  c  d  e  f  g  h ")
+
+	// print bitboard as unsigned decimal number
+	fmt.Printf("      Bitboard: %d\n", bitboard)
+}
+
+/*********************************************************\
+===========================================================
+
+                        Attacks
+
+===========================================================
+\*********************************************************/
+
+/*
+          not A file
+
+  8   0  1  1  1  1  1  1  1 
+  7   0  1  1  1  1  1  1  1 
+  6   0  1  1  1  1  1  1  1 
+  5   0  1  1  1  1  1  1  1 
+  4   0  1  1  1  1  1  1  1 
+  3   0  1  1  1  1  1  1  1 
+  2   0  1  1  1  1  1  1  1 
+  1   0  1  1  1  1  1  1  1 
+
+      a  b  c  d  e  f  g  h 
+
+          not H file
+
+  8   1  1  1  1  1  1  1  0 
+  7   1  1  1  1  1  1  1  0 
+  6   1  1  1  1  1  1  1  0 
+  5   1  1  1  1  1  1  1  0 
+  4   1  1  1  1  1  1  1  0 
+  3   1  1  1  1  1  1  1  0 
+  2   1  1  1  1  1  1  1  0 
+  1   1  1  1  1  1  1  1  0 
+
+      a  b  c  d  e  f  g  h 
+
+
+          not HG file
+  8   1  1  1  1  1  1  0  0 
+  7   1  1  1  1  1  1  0  0 
+  6   1  1  1  1  1  1  0  0 
+  5   1  1  1  1  1  1  0  0 
+  4   1  1  1  1  1  1  0  0 
+  3   1  1  1  1  1  1  0  0 
+  2   1  1  1  1  1  1  0  0 
+  1   1  1  1  1  1  1  0  0 
+
+      a  b  c  d  e  f  g  h 
+
+          not AB file
+
+  8   0  0  1  1  1  1  1  1 
+  7   0  0  1  1  1  1  1  1 
+  6   0  0  1  1  1  1  1  1 
+  5   0  0  1  1  1  1  1  1 
+  4   0  0  1  1  1  1  1  1 
+  3   0  0  1  1  1  1  1  1 
+  2   0  0  1  1  1  1  1  1 
+  1   0  0  1  1  1  1  1  1 
+
+      a  b  c  d  e  f  g  h 
+*/
+
+// All zero file constants
+const NOT_A_FILE = uint64(18374403900871474942)
+const NOT_H_FILE = uint64(9187201950435737471)
+const NOT_HG_FILE = uint64(4557430888798830399)
+const NOT_AB_FILE = uint64(18229723555195321596)
+
+// Relevant occupancy bit count for every square on board
+var bishopRelevantBits = []int{
+	6, 5, 5, 5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 7, 7, 7, 5, 5, 5, 5,
+	7, 9, 9, 7, 5, 5, 5, 5, 7, 9, 9, 7, 5, 5, 5, 5, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 6,
+}
+
+var rookRelevantBits = []int{
+	12, 11, 11, 11, 11, 11, 11, 12, 11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10,
+	10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10,
+	10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 12,
+	11, 11, 11, 11, 11, 11, 12,
+}
+
+// magic numbers
+var rookMagicNumbers = []uint64{
+	0x8a80104000800020,
+	0x140002000100040,
+	0x2801880a0017001,
+	0x100081001000420,
+	0x200020010080420,
+	0x3001c0002010008,
+	0x8480008002000100,
+	0x2080088004402900,
+	0x800098204000,
+	0x2024401000200040,
+	0x100802000801000,
+	0x120800800801000,
+	0x208808088000400,
+	0x2802200800400,
+	0x2200800100020080,
+	0x801000060821100,
+	0x80044006422000,
+	0x100808020004000,
+	0x12108a0010204200,
+	0x140848010000802,
+	0x481828014002800,
+	0x8094004002004100,
+	0x4010040010010802,
+	0x20008806104,
+	0x100400080208000,
+	0x2040002120081000,
+	0x21200680100081,
+	0x20100080080080,
+	0x2000a00200410,
+	0x20080800400,
+	0x80088400100102,
+	0x80004600042881,
+	0x4040008040800020,
+	0x440003000200801,
+	0x4200011004500,
+	0x188020010100100,
+	0x14800401802800,
+	0x2080040080800200,
+	0x124080204001001,
+	0x200046502000484,
+	0x480400080088020,
+	0x1000422010034000,
+	0x30200100110040,
+	0x100021010009,
+	0x2002080100110004,
+	0x202008004008002,
+	0x20020004010100,
+	0x2048440040820001,
+	0x101002200408200,
+	0x40802000401080,
+	0x4008142004410100,
+	0x2060820c0120200,
+	0x1001004080100,
+	0x20c020080040080,
+	0x2935610830022400,
+	0x44440041009200,
+	0x280001040802101,
+	0x2100190040002085,
+	0x80c0084100102001,
+	0x4024081001000421,
+	0x20030a0244872,
+	0x12001008414402,
+	0x2006104900a0804,
+	0x1004081002402,
+}
+
+var bishopMagicNumbers = []uint64{
+	0x40040844404084,
+	0x2004208a004208,
+	0x10190041080202,
+	0x108060845042010,
+	0x581104180800210,
+	0x2112080446200010,
+	0x1080820820060210,
+	0x3c0808410220200,
+	0x4050404440404,
+	0x21001420088,
+	0x24d0080801082102,
+	0x1020a0a020400,
+	0x40308200402,
+	0x4011002100800,
+	0x401484104104005,
+	0x801010402020200,
+	0x400210c3880100,
+	0x404022024108200,
+	0x810018200204102,
+	0x4002801a02003,
+	0x85040820080400,
+	0x810102c808880400,
+	0xe900410884800,
+	0x8002020480840102,
+	0x220200865090201,
+	0x2010100a02021202,
+	0x152048408022401,
+	0x20080002081110,
+	0x4001001021004000,
+	0x800040400a011002,
+	0xe4004081011002,
+	0x1c004001012080,
+	0x8004200962a00220,
+	0x8422100208500202,
+	0x2000402200300c08,
+	0x8646020080080080,
+	0x80020a0200100808,
+	0x2010004880111000,
+	0x623000a080011400,
+	0x42008c0340209202,
+	0x209188240001000,
+	0x400408a884001800,
+	0x110400a6080400,
+	0x1840060a44020800,
+	0x90080104000041,
+	0x201011000808101,
+	0x1a2208080504f080,
+	0x8012020600211212,
+	0x500861011240000,
+	0x180806108200800,
+	0x4000020e01040044,
+	0x300000261044000a,
+	0x802241102020002,
+	0x20906061210001,
+	0x5a84841004010310,
+	0x4010801011c04,
+	0xa010109502200,
+	0x4a02012000,
+	0x500201010098b028,
+	0x8040002811040900,
+	0x28000010020204,
+	0x6000020202d0240,
+	0x8918844842082200,
+	0x4010011029020020,
+}
+
+// pawn attacks table [side][square]
+var pawnAttacks = [2][64]uint64{}
+
+// knight attacks table [square]
+var knightAttacks = [64]uint64{}
+
+// king attacks table [square]
+var kingAttacks = [64]uint64{}
+
+func maskPawnAttacks(side int, square int) uint64 {
+	// result attacks bitboard
+	var attacks uint64 = 0
+	// piece bitboard
+	var bitboard uint64 = 0
+	// set piece on board
+	bitboard = setBit(bitboard, square)
+
+	if side == WHITE {
+		if (bitboard >> 7) & NOT_A_FILE != 0 {
+			attacks |= bitboard >> 7
+		}
+		if (bitboard >> 9) & NOT_H_FILE != 0 {
+			attacks |= bitboard >> 9
+		}
+	} else {
+		// a8
+		if (bitboard << 7) & NOT_H_FILE != 0 {
+			attacks |= bitboard << 7
+		}
+		if (bitboard << 9) & NOT_A_FILE != 0 {
+			attacks |= bitboard << 9
+		}
+	}
+
+	return attacks
+}
+
+func maskKnightAttacks(square int) uint64 {
+	var attacks uint64 = 0
+	var bitboard uint64 = 0
+	bitboard = setBit(bitboard, square)
+
+	// up1 right2
+	if (bitboard >> 6) & NOT_AB_FILE != 0 {
+		attacks |= bitboard >> 6
+	}
+	// up2 right1
+	if (bitboard >> 15) & NOT_A_FILE != 0 {
+		attacks |= bitboard >> 15
+	}
+	// up2 left1
+	if (bitboard >> 17) & NOT_H_FILE != 0 {
+		attacks |= bitboard >> 17
+	}
+	// up1 left2
+	if (bitboard >> 10) & NOT_HG_FILE != 0 {
+		attacks |= bitboard >> 10
+	}
+
+	// down1 left2
+	if (bitboard << 6) & NOT_HG_FILE != 0 {
+		attacks |= bitboard << 6
+	}
+	// down2 left1
+	if (bitboard << 15) & NOT_H_FILE != 0 {
+		attacks |= bitboard << 15
+	}
+	// down2 right1
+	if (bitboard << 17) & NOT_A_FILE != 0 {
+		attacks |= bitboard << 17
+	}
+	//down1 right 2
+	if (bitboard << 10) & NOT_AB_FILE != 0 {
+		attacks |= bitboard << 10
+	}
+
+	return attacks
+}
+
+func maskKingAttacks(square int) uint64 {
+	var attacks uint64 = 0
+	var bitboard uint64 = 0
+	bitboard = setBit(bitboard, square)
+
+	if (bitboard >> 1) & NOT_H_FILE != 0 {
+		attacks |= bitboard >> 1
+	}
+	if (bitboard >> 7) & NOT_A_FILE != 0 {
+		attacks |= bitboard >> 7
+	}
+	if (bitboard >> 9) & NOT_H_FILE != 0 {
+		attacks |= bitboard >> 9
+	}
+	if bitboard >> 8 != 0 {
+		attacks |= bitboard >> 8
+	}
+
+	if (bitboard << 1) & NOT_A_FILE != 0 {
+		attacks |= bitboard << 1
+	}
+	if (bitboard << 7) & NOT_H_FILE != 0 {
+		attacks |= bitboard << 7
+	}
+	if (bitboard << 9) & NOT_A_FILE != 0 {
+		attacks |= bitboard << 9
+	}
+	if bitboard << 8 != 0 {
+		attacks |= bitboard << 8
+	}
+
+	return attacks
+}
+
+func maskBishopAttacks(square int) uint64 {
+	var attacks uint64 = 0
+
+	// init ranks & files
+	var r, f int
+
+	// init target rank & files
+	tr := square / 8
+	tf := square % 8
+
+	// mask relevant bishop occupancy bits
+	for r, f = tr + 1, tf + 1; r <= 6 && f <= 6; r, f = r + 1, f + 1 {
+		attacks |= 1 << uint(r * 8 + f)
+	}
+	for r, f = tr + 1, tf - 1; r <= 6 && f >= 1; r, f = r + 1, f - 1 {
+		attacks |= 1 << uint(r * 8 + f)
+	}
+	for r, f = tr - 1, tf - 1; r >= 1 && f >= 1; r, f = r - 1, f - 1 {
+		attacks |= 1 << uint(r * 8 + f)
+	}
+	for r, f = tr - 1, tf + 1; r >= 1 && f <= 6; r, f = r - 1, f + 1 {
+		attacks |= 1 << uint(r * 8 + f)
+	}
+
+	return attacks
+}
+
+func maskRookAttacks(square int) uint64 {
+	var attacks uint64 = 0
+
+	// rank & file
+	var r, f int
+
+	// target rank & file
+	tr := square / 8
+	tf := square % 8
+
+	// mask relevant rook occupancy bits
+	for r = tr + 1; r <= 6; r++ {
+		attacks |= 1 << uint(r * 8 + tf)
+	}
+	for r = tr - 1; r >= 1; r-- {
+		attacks |= 1 << uint(r * 8 + tf)
+	}
+	for f = tf + 1; f <= 6; f++ {
+		attacks |= 1 << uint(tr * 8 + f)
+	}
+	for f = tf - 1; f >= 1; f-- {
+		attacks |= 1 << uint(tr * 8 + f)
+	}
+
+	return attacks
+}
+
+// generate bishop attacks on the fly
+func bishopAttacksOnTheFly(square int, block uint64) uint64 {
+	var attacks uint64 = 0
+
+	var r, f int
+
+	tr := square / 8
+	tf := square % 8
+
+	// mask attacks, if we hit a blocker, don't go any further
+	for r, f = tr + 1, tf + 1; r <= 7 && f <= 7; r, f = r + 1, f + 1 {
+		attacks |= 1 << uint(r * 8 + f)
+		if (1 << uint(r * 8 + f)) & block != 0 {
+			break
+		}
+	}
+	for r, f = tr + 1, tf - 1; r <= 7 && f >= 0; r, f = r + 1, f - 1 {
+		attacks |= 1 << uint(r * 8 + f)
+		if (1 << uint(r * 8 + f)) & block != 0 {
+			break
+		}
+	}
+	for r, f = tr - 1, tf - 1; r >= 0 && f >= 0; r, f = r - 1, f - 1 {
+		attacks |= 1 << uint(r * 8 + f)
+		if (1 << uint(r * 8 + f)) & block != 0 {
+			break
+		}
+	}
+	for r, f = tr - 1, tf + 1; r >= 0 && f <= 7; r, f = r - 1, f + 1 {
+		attacks |= 1 << uint(r * 8 + f)
+		if (1 << uint(r * 8 + f)) & block != 0 {
+			break
+		}
+	}
+
+	return attacks
+}
+
+func rookAttacksOnTheFly(square int, block uint64) uint64 {
+	var attacks uint64 = 0
+
+	var r, f int
+
+	tr := square / 8
+	tf := square % 8
+
+	// mask attacks, if we hit a blocker, don't go any further
+	for r = tr + 1; r <= 7; r++ {
+		attacks |= 1 << uint(r * 8 + tf)
+		if (1 << uint(r * 8 + tf)) & block != 0 {
+			break
+		}
+	}
+	for r = tr - 1; r >= 0; r-- {
+		attacks |= 1 << uint(r * 8 + tf)
+		if (1 << uint(r * 8 + tf)) & block != 0 {
+			break
+		}
+	}
+	for f = tf + 1; f <= 7; f++ {
+		attacks |= 1 << uint(tr * 8 + f)
+		if (1 << uint(tr * 8 + f)) & block != 0 {
+			break
+		}
+	}
+	for f = tf - 1; f >= 0; f-- {
+		attacks |= 1 << uint(tr * 8 + f)
+		if (1 << uint(tr * 8 + f)) & block != 0 {
+			break
+		}
+	}
+
+	return attacks
+}
+
+func initLeapersAttacks() {
+	for square := range 64 {
+		// init pawn attacks
+		pawnAttacks[WHITE][square] = maskPawnAttacks(WHITE, square)
+		pawnAttacks[BLACK][square] = maskPawnAttacks(BLACK, square)
+
+		// init knight attacks
+		knightAttacks[square] = maskKnightAttacks(square)
+
+		// init king attacks
+		kingAttacks[square] = maskKingAttacks(square)
+	}
+}
+
+// index = 1, bitsInMask = 10, attackMask = rook d4
+// square idx = 11
+
+// Index is the configuration, if bitsInMask = 10, there are 2**10 - 1 = 1023 combinations
+// of variations in bits set for a 10 bit number. If we iterate 1...1023,
+// index will represent every combination by which bits are on/off. count helps us
+// "loop" over and check each bit of Index. If that bit is set, we set our occupancy bit on at
+// the associated square. We get the LS1B index so we know the offset for index->square.
+// We pop the bit because otherwise we would be trying to place each square in the same
+// place regardless of it's association with a particular index bit.
+func setOccupancy(
+	occupancyVariation int,
+	bitsInMask int,
+	attackMask uint64,
+) uint64 {
+	// occupancy map
+	var occupancy uint64 = 0
+
+	for idx := range bitsInMask {
+		// get LS1B index of attack mask
+		square := getLeastSignificantFirstBitIndex(attackMask)
+
+		// pop LS1B in attack mask
+		attackMask = popBit(attackMask, square)
+
+		// check if bit in variation at idx offset is turned on
+		if occupancyVariation & (1 << idx) != 0 {
+			// populate occupancy map
+			occupancy |= 1 << uint(square)
+		}
+	}
+
+	return occupancy
+}
+
+/*********************************************************\
+===========================================================
+
+                        Magics
+
+===========================================================
+\*********************************************************/
+
+
+/*
+A magic number is a a number which will product unique indices for all of our attacks
+that take into account the blocking occupancies.
+*/
+func findMagicNumber(square int, bishop int) uint64 {
+	occupancies := make([]uint64, 4096)
+	attacks := make([]uint64, 4096)
+
+	var attackMask uint64
+	// number of squares that can potentially block the piece's attacks from square
+	var numBitsInMask int
+	if bishop != 0 {
+		attackMask = maskBishopAttacks(square)
+		numBitsInMask = bishopRelevantBits[square]
+	} else {
+		attackMask = maskRookAttacks(square)
+		numBitsInMask = rookRelevantBits[square]
+	}
+
+	// 2^relevantBits, we will loop over all possible occupancy configurations
+	occupancyConfigurations := 1 << numBitsInMask
+
+	// init our arrays with all occupancy variations and attacks for rook or bishop
+	for i := range occupancyConfigurations {
+
+		occupancies[i] = setOccupancy(
+			i,
+			numBitsInMask,
+			attackMask,
+		)
+
+		if bishop != 0 {
+			attacks[i] = bishopAttacksOnTheFly(square, occupancies[i])
+		} else {
+			attacks[i] = rookAttacksOnTheFly(square, occupancies[i])
+		}
+	}
+
+	// trying 1 million magic numbers
+	for range 10000000 {
+
+		// get pseudo random uint64 number
+		magicNumber := generateMagicNumber()
+		usedAttacks := make([]uint64, 4096)
+
+		// skip bad magic numbers
+		if countBits((attackMask * magicNumber) & 0xff00000000000000) < 6 {
+			continue
+		}
+
+		failed := false
+		for i := range occupancyConfigurations {
+			magicIndex := int((occupancies[i] * magicNumber) >> (64 - numBitsInMask))
+
+			if usedAttacks[magicIndex] == 0 {
+				usedAttacks[magicIndex] = attacks[i]
+			} else if usedAttacks[magicIndex] != attacks[i] {
+				failed = true
+				break
+			}
+		}
+
+		if !failed {
+			return magicNumber
+		}
+	}
+	return 0
+}
+
+// init magic numbers
+func initMagicNumbers() {
+	for i := range 64 {
+		// init rook magic numbers
+		fmt.Printf("0x%x,\n", findMagicNumber(i, ROOK))
+	}
+
+	fmt.Println()
+
+	for i := range 64 {
+		// init bishop magic numbers
+		fmt.Printf("0x%x,\n", findMagicNumber(i, BISHOP))
+	}
+}
+
+/*********************************************************\
+===========================================================
+
+                        Init all
+
+===========================================================
+\*********************************************************/
+
+// init all stuffs
+func initAll() {
+	initLeapersAttacks()
+
+	// hard coded now
+	//initMagicNumbers()
+}
+/*********************************************************\
+===========================================================
+
+                        Main driver
+
+===========================================================
+\*********************************************************/
+
+func main() {
+	// init all
+	initAll()
+}
