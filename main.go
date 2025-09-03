@@ -91,11 +91,67 @@ const (
 	h1 = 63
 )
 
+const no_sq = 64
+
 const WHITE = 0
 const BLACK = 1
+const BOTH = 2
 
 const ROOK = 0
 const BISHOP = 1
+
+/*
+	 Castling bits binary representation
+
+	 0001	1	white king can castle to the king side
+	 0010	2	white king can castle to the queene side
+	 0100	4	black king can castle to the king side
+	 1000	8	black king can castle to the queen side
+
+	 examples
+
+	 1111		both sides can castle both directions
+	 1001		black king => queen side
+				white king => king side
+*/
+// castling bits
+const (
+	WK = 1
+	WQ = 2
+	BK = 4
+	BQ = 8
+)
+
+// encode pieces uppercase = white, lower = black
+const (
+	P = 0
+	N = 1
+	B = 2
+	R = 3
+	Q = 4
+	K = 5
+	p = 6
+	n = 7
+	b = 8
+	r = 9
+	q = 10
+	k = 11
+)
+
+// ASCII pieces as a string
+var asciiPieces = "PNBRQKpnbrqk"
+
+// Unicode pieces as array
+var unicodePieces = []string{
+	"♙", "♘", "♗", "♖", "♕", "♔",
+	"♟", "♞", "♝", "♜", "♛", "♚",
+}
+
+// convert ASCII character pieces to encoded constants
+var charPieces = map[rune]int{
+	'P': P, 'N': N, 'B': B, 'R': R, 'Q': Q, 'K': K,
+	'p': p, 'n': n, 'b': b, 'r': r, 'q': q, 'k': k,
+}
 
 var SquareToBigInt = []uint64{
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -115,6 +171,21 @@ var SquareToCoordinates = []string{
 	"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
 	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 }
+
+// piece bitboards
+var bitboards = [12]uint64{}
+
+// occupancy bitboards
+var occupancies = [3]uint64{}
+
+// side to move
+var side int = -1
+
+// enpassant square
+var enpassant int = no_sq
+
+// castling rights
+var castle int
 
 /*********************************************************\
 ===========================================================
@@ -184,7 +255,7 @@ func setBit(bitboard uint64, square int) uint64 {
 
 func popBit(bitboard uint64, square int) uint64 {
 	if getBit(bitboard, square) != 0 {
-		return bitboard ^ (1 << SquareToBigInt[square])
+		bitboard &= ^(1 << square)
 	}
 	return bitboard
 }
@@ -241,7 +312,37 @@ func printBitboard(bitboard uint64) {
 	fmt.Println("\n      a  b  c  d  e  f  g  h ")
 
 	// print bitboard as unsigned decimal number
-	fmt.Printf("      Bitboard: %d\n", bitboard)
+	fmt.Printf("\n      Bitboard: %d\n", bitboard)
+}
+
+// print board
+func printBoard() {
+	fmt.Println()
+	for rank := range 8 {
+		for file := range 8 {
+			square := rank*8 + file
+
+			if file == 0 {
+				fmt.Printf("  %d ", 8-rank)
+			}
+			piece := -1
+
+			// loop over all piece bitboards
+			for bbPiece := P; bbPiece <= k; bbPiece++ {
+				if getBit(bitboards[bbPiece], square) != 0 {
+					piece = bbPiece
+				}
+			}
+
+			if piece == -1 {
+				fmt.Printf("  %c", '.')
+			} else {
+				fmt.Printf("  %c", asciiPieces[piece])
+			}
+		}
+		fmt.Println()
+	}
+	fmt.Println("\n      a  b  c  d  e  f  g  h")
 }
 
 /*********************************************************\
@@ -942,11 +1043,8 @@ func getRookAttacks(square int, occupancy uint64) uint64 {
 // init all stuffs
 func initAll() {
 	initLeapersAttacks()
-
 	initSlidersAttacks(BISHOP)
 	initSlidersAttacks(ROOK)
-	// hard coded now
-	//initMagicNumbers()
 }
 
 /*********************************************************\
@@ -960,17 +1058,7 @@ func initAll() {
 func main() {
 	initAll()
 
-	var occupancy uint64 = 0
-	occupancy = setBit(occupancy, c5)
-	occupancy = setBit(occupancy, f2)
-	occupancy = setBit(occupancy, g7)
-	occupancy = setBit(occupancy, b2)
-	occupancy = setBit(occupancy, g5)
-	occupancy = setBit(occupancy, e2)
-	occupancy = setBit(occupancy, e7)
-	printBitboard(occupancy)
-
-	printBitboard(getBishopAttacks(d4, occupancy))
-
-	printBitboard(getRookAttacks(e5, occupancy))
+	bitboards[P] = setBit(bitboards[P], e2)
+	printBitboard(bitboards[P])
+	printBoard()
 }
