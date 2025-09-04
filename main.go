@@ -1,6 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+const EMPTY_BOARD = "8/8/8/8/8/8/8/8 w - - "
+const START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
+const TRICKY_POSITION = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
+const KILLER_POSITION = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1 "
+const CMK_POSITION = "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - 0 9 "
 
 // board squares
 const (
@@ -148,7 +157,7 @@ var unicodePieces = []string{
 }
 
 // convert ASCII character pieces to encoded constants
-var charPieces = map[rune]int{
+var charPieces = map[byte]int{
 	'P': P, 'N': N, 'B': B, 'R': R, 'Q': Q, 'K': K,
 	'p': p, 'n': n, 'b': b, 'r': r, 'q': q, 'k': k,
 }
@@ -380,6 +389,85 @@ func printBoard() {
 		fmt.Print("-")
 	}
 	fmt.Print("\n\n")
+}
+
+// parse FEN string
+// const EMPTY_BOARD = "8/8/8/8/8/8/8/8 w - - "
+// const START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
+// const TRICKY_POSITION = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
+// const KILLER_POSITION = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1 "
+// const CMK_POSITION = "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - 0 9 "
+
+func parseFEN(fen string) {
+	// reset board position and state variables
+	for i := range bitboards {
+		bitboards[i] = 0
+	}
+	for i := range occupancies {
+		occupancies[i] = 0
+	}
+	side = WHITE
+	enpassant = NO_SQ
+	castle = 0
+
+	// setup board
+	i, square := 0, 0
+	for ; i < len(fen) && square < 64; i++ {
+		if fen[i] == '/' {
+			continue
+		} else if isAlpha(fen[i]) {
+			piece := charPieces[fen[i]]
+			bitboards[piece] = setBit(bitboards[piece], square)
+			square++
+		} else if isNumeric(fen[i]) {
+			empty := int(fen[i] - '0')
+			square += empty
+		}
+	}
+
+	// starting side
+	for ; fen[i] == ' '; i++ {
+	}
+	splitFen := strings.Split(fen[i:], " ")
+
+	if splitFen[0] == "w" {
+		side = WHITE
+	} else {
+		side = BLACK
+	}
+
+	// castling rights
+	for _, c := range splitFen[1] {
+		if c == '-' {
+			break
+		}
+
+		switch c {
+		case 'K':
+			fmt.Println("white king")
+			castle |= WK
+		case 'Q':
+			fmt.Println("white queen")
+			castle |= WQ
+		case 'k':
+			fmt.Println("black king")
+			castle |= BK
+		case 'q':
+			fmt.Println("black queen")
+			castle |= BQ
+		default:
+			continue
+		}
+	}
+
+}
+
+func isAlpha(character byte) bool {
+	return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')
+}
+
+func isNumeric(character byte) bool {
+	return character >= '0' && character <= '9'
 }
 
 /*********************************************************\
@@ -1095,29 +1183,7 @@ func initAll() {
 func main() {
 	initAll()
 
-	bitboards[P] = setBit(bitboards[P], a2)
-	bitboards[P] = setBit(bitboards[P], b2)
-	bitboards[P] = setBit(bitboards[P], c2)
-	bitboards[P] = setBit(bitboards[P], e2)
-	bitboards[P] = setBit(bitboards[P], d2)
-	bitboards[P] = setBit(bitboards[P], f2)
-	bitboards[P] = setBit(bitboards[P], g2)
-	bitboards[P] = setBit(bitboards[P], h2)
+	parseFEN(TRICKY_POSITION)
 
-	bitboards[N] = setBit(bitboards[N], b1)
-	bitboards[N] = setBit(bitboards[N], g1)
-
-	bitboards[n] = setBit(bitboards[n], b8)
-
-	side = BLACK
-	enpassant = e3
-	castle |= WK
-	castle |= WQ
-	castle |= BK
-	castle |= BQ
-
-	for piece := P; piece <= k; piece++ {
-		printBitboard(bitboards[piece])
-	}
 	printBoard()
 }
