@@ -91,7 +91,7 @@ const (
 	h1 = 63
 )
 
-const no_sq = 64
+const NO_SQ = 64
 
 const WHITE = 0
 const BLACK = 1
@@ -179,10 +179,10 @@ var bitboards = [12]uint64{}
 var occupancies = [3]uint64{}
 
 // side to move
-var side int = -1
+var side int
 
 // enpassant square
-var enpassant int = no_sq
+var enpassant int = NO_SQ
 
 // castling rights
 var castle int
@@ -337,12 +337,49 @@ func printBoard() {
 			if piece == -1 {
 				fmt.Printf("  %c", '.')
 			} else {
-				fmt.Printf("  %c", asciiPieces[piece])
+				fmt.Printf("  %s", unicodePieces[piece])
 			}
 		}
 		fmt.Println()
 	}
 	fmt.Println("\n      a  b  c  d  e  f  g  h")
+
+	fmt.Println()
+	if side != 1 {
+		fmt.Println("      Side:      white")
+	} else {
+		fmt.Println("      Side:      black")
+	}
+
+	if enpassant != NO_SQ {
+		fmt.Println("      Enpassant:   ", SquareToCoordinates[enpassant])
+	} else {
+		fmt.Println("      Enpassant:   none")
+	}
+
+	fmt.Printf("      Castling:   ")
+
+	if castle&WK != 0 {
+		fmt.Print("K")
+	} else {
+		fmt.Print("-")
+	}
+	if castle&WQ != 0 {
+		fmt.Print("Q")
+	} else {
+		fmt.Print("-")
+	}
+	if castle&BK != 0 {
+		fmt.Print("k")
+	} else {
+		fmt.Print("-")
+	}
+	if castle&BQ != 0 {
+		fmt.Print("q")
+	} else {
+		fmt.Print("-")
+	}
+	fmt.Print("\n\n")
 }
 
 /*********************************************************\
@@ -1058,7 +1095,29 @@ func initAll() {
 func main() {
 	initAll()
 
+	bitboards[P] = setBit(bitboards[P], a2)
+	bitboards[P] = setBit(bitboards[P], b2)
+	bitboards[P] = setBit(bitboards[P], c2)
 	bitboards[P] = setBit(bitboards[P], e2)
-	printBitboard(bitboards[P])
+	bitboards[P] = setBit(bitboards[P], d2)
+	bitboards[P] = setBit(bitboards[P], f2)
+	bitboards[P] = setBit(bitboards[P], g2)
+	bitboards[P] = setBit(bitboards[P], h2)
+
+	bitboards[N] = setBit(bitboards[N], b1)
+	bitboards[N] = setBit(bitboards[N], g1)
+
+	bitboards[n] = setBit(bitboards[n], b8)
+
+	side = BLACK
+	enpassant = e3
+	castle |= WK
+	castle |= WQ
+	castle |= BK
+	castle |= BQ
+
+	for piece := P; piece <= k; piece++ {
+		printBitboard(bitboards[piece])
+	}
 	printBoard()
 }
