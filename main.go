@@ -1207,13 +1207,9 @@ func initAll() {
 func main() {
 	initAll()
 
-	var occupancy uint64 = 0
-
-	// occupancy = setBit(occupancy, b6)
-	// occupancy = setBit(occupancy, d6)
-	// occupancy = setBit(occupancy, f6)
-	// occupancy = setBit(occupancy, b4)
-	// occupancy = setBit(occupancy, g4)
-	// occupancy = setBit(occupancy, d3)
-	printBitboard(getQueenAttacks(d4, occupancy))
+	parseFEN("8/8/8/3p4/8/8/8/8 w - - ")
+	printBoard()
+	printBitboard(bitboards[p])
+	printBitboard(pawnAttacks[WHITE][e4])
+	printBitboard(bitboards[p] & pawnAttacks[WHITE][e4])
 }
