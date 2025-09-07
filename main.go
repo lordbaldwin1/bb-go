@@ -1264,6 +1264,15 @@ func generateMoves() {
 		// gen pawn & king castling moves
 		if side == WHITE {
 
+			if piece == P {
+				for bitboard > 0 {
+					sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+					targetSquare = sourceSquare - 8
+
+					// quiet pawn moves
+
+				}
+			}
 		} else {
 
 		}
