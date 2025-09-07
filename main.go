@@ -279,6 +279,7 @@ func countBits(bitboard uint64) int {
 	}
 	return count
 }
+
 func getLeastSignificantFirstBitIndex(bitboard uint64) int {
 	if bitboard == 0 {
 		return -1
@@ -1268,9 +1269,11 @@ func generateMoves() {
 				for bitboard > 0 {
 					sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
 					targetSquare = sourceSquare - 8
+					fmt.Println("white pawn:", SquareToCoordinates[sourceSquare])
 
 					// quiet pawn moves
 
+					bitboard = popBit(bitboard, sourceSquare)
 				}
 			}
 		} else {
@@ -1316,7 +1319,6 @@ func main() {
 
 	parseFEN(TRICKY_POSITION)
 	printBoard()
-	// printBitboard(occupancies[BOTH])
 
-	printAttackedSquares(WHITE)
+	generateMoves()
 }
