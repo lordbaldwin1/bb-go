@@ -1184,12 +1184,110 @@ func getQueenAttacks(square int, occupancy uint64) uint64 {
 /*********************************************************\
 ===========================================================
 
+                        Move Generator
+
+===========================================================
+\*********************************************************/
+
+// is given square attacked by the given side?
+func isSquareAttacked(square, side int) int {
+	if side == WHITE && pawnAttacks[BLACK][square]&bitboards[P] > 0 {
+		return 1
+	} else if side == BLACK && pawnAttacks[WHITE][square]&bitboards[p] > 0 {
+		return 1
+	}
+
+	if side == WHITE && (knightAttacks[square]&bitboards[N]) > 0 {
+		return 1
+	} else if side == BLACK && (knightAttacks[square]&bitboards[n]) > 0 {
+		return 1
+	}
+
+	if side == WHITE && (getBishopAttacks(square, occupancies[BOTH])&bitboards[B]) > 0 {
+		return 1
+	} else if side == BLACK && (getBishopAttacks(square, occupancies[BOTH])&bitboards[b]) > 0 {
+		return 1
+	}
+
+	if side == WHITE && (getRookAttacks(square, occupancies[BOTH])&bitboards[R]) > 0 {
+		return 1
+	} else if side == BLACK && (getRookAttacks(square, occupancies[BOTH])&bitboards[r]) > 0 {
+		return 1
+	}
+
+	if side == WHITE && (getQueenAttacks(square, occupancies[BOTH])&bitboards[Q]) > 0 {
+		return 1
+	} else if side == BLACK && (getQueenAttacks(square, occupancies[BOTH])&bitboards[q]) > 0 {
+		return 1
+	}
+
+	if side == WHITE && (kingAttacks[square]&bitboards[K]) > 0 {
+		return 1
+	} else if side == BLACK && (kingAttacks[square]&bitboards[k]) > 0 {
+		return 1
+	}
+
+	return 0
+}
+
+func printAttackedSquares(side int) {
+	fmt.Println()
+
+	for rank := range 8 {
+		for file := range 8 {
+			square := rank*8 + file
+
+			if file == 0 {
+				fmt.Printf("  %d  ", 8-rank)
+			}
+
+			fmt.Printf(" %d ", isSquareAttacked(square, side))
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("\n      a  b  c  d  e  f  g  h ")
+}
+
+func generateMoves() {
+	// define source & target squares
+	var sourceSquare int
+	var targetSquare int
+
+	// define current pieces bitboard copy & its attacks
+	var bitboard uint64
+	var attacks uint64
+
+	for piece := range bitboards {
+		bitboard = bitboards[piece]
+
+		// gen pawn & king castling moves
+		if side == WHITE {
+
+		} else {
+
+		}
+
+		// gen knight moves
+
+		// gen bishop moves
+
+		// gen rook moves
+
+		// gen queen moves
+
+		// gen non-castling king moves
+	}
+}
+
+/*********************************************************\
+===========================================================
+
                         Init all
 
 ===========================================================
 \*********************************************************/
 
-// init all stuffs
 func initAll() {
 	initLeapersAttacks()
 	initSlidersAttacks(BISHOP)
@@ -1207,9 +1305,9 @@ func initAll() {
 func main() {
 	initAll()
 
-	parseFEN("8/8/8/3p4/8/8/8/8 w - - ")
+	parseFEN(TRICKY_POSITION)
 	printBoard()
-	printBitboard(bitboards[p])
-	printBitboard(pawnAttacks[WHITE][e4])
-	printBitboard(bitboards[p] & pawnAttacks[WHITE][e4])
+	// printBitboard(occupancies[BOTH])
+
+	printAttackedSquares(WHITE)
 }

@@ -96,3 +96,16 @@ Uses Brian Kernighan's algorithm: `bitboard &= bitboard - 1` repeatedly clears t
 - Consider hardware BMI (Bit Manipulation Instructions) for faster operations
 - Magic numbers provide O(1) sliding piece attack lookup
 - Bitboards enable parallel processing of multiple squares simultaneously
+
+### Finding out whether a square is attacked
+- **Pawns**: we're checking the inverse:
+```Go
+	// attacked by white pawns
+	if side == WHITE && (pawnAttacks[BLACK][square]&bitboards[P]) > 0 {
+		return 1
+  // else, attacked by black pawns
+	} else if side == BLACK && (pawnAttacks[WHITE][square]&bitboards[p] > 0) {
+		return 1
+	}
+```
+- to see if a square is attacked by a black pawn, we look at white pawn attacks for a square and & it with our black pawns occupancy. If the white pawn can attack our black pawn, the black pawn can also attack that square!
