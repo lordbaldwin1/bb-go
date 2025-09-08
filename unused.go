@@ -115,3 +115,5 @@ var _ = isNumeric
 var _ = getBishopAttacks
 var _ = getRookAttacks
 var _ = getQueenAttacks
+var _ = isSquareAttacked
+var _ = printAttackedSquares

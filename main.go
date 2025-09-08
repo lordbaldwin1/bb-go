@@ -347,7 +347,7 @@ func printBoard() {
 			if piece == -1 {
 				fmt.Printf("  %c", '.')
 			} else {
-				fmt.Printf("  %s", unicodePieces[piece])
+				fmt.Printf("  %c", asciiPieces[piece])
 			}
 		}
 		fmt.Println()
@@ -1259,36 +1259,369 @@ func generateMoves() {
 	var bitboard uint64
 	var attacks uint64
 
+	// just setting unused for now
+	var _ = attacks
+
 	for piece := range bitboards {
 		bitboard = bitboards[piece]
 
-		// gen pawn & king castling moves
+		// gen pawn moves
 		if side == WHITE {
-
 			if piece == P {
 				for bitboard > 0 {
 					sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
 					targetSquare = sourceSquare - 8
-					fmt.Println("white pawn:", SquareToCoordinates[sourceSquare])
+					if targetSquare > a8 && getBit(occupancies[BOTH], targetSquare) == 0 {
+						if sourceSquare >= a7 && sourceSquare <= h7 {
+							fmt.Printf("%s%s    white pawn promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    white pawn promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    white pawn promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    white pawn promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						} else {
+							fmt.Printf("%s%s    white pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							if (sourceSquare >= a2 && sourceSquare <= h2) && getBit(occupancies[BOTH], targetSquare-8) == 0 {
+								fmt.Printf("%s%s    white double pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare-8])
+							}
+						}
+					}
+					// white captures
+					attacks = pawnAttacks[side][sourceSquare] & occupancies[BLACK]
+					for attacks > 0 {
+						targetSquare = getLeastSignificantFirstBitIndex(attacks)
 
-					// quiet pawn moves
+						if sourceSquare >= a7 && sourceSquare <= h7 {
+							fmt.Printf("%s%s    white pawn capture promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    white pawn capture promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    white pawn capture promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    white pawn capture promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						} else {
+							fmt.Printf("%s%s    white pawn capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						}
+						attacks = popBit(attacks, targetSquare)
+					}
 
+					// white enpassant
+					if enpassant != NO_SQ {
+						enpassantAttacks := pawnAttacks[side][sourceSquare] & (1 << enpassant)
+
+						if enpassantAttacks > 0 {
+							targetEnpassant := getLeastSignificantFirstBitIndex(enpassantAttacks)
+							fmt.Printf("%s%s    white pawn enpassant capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetEnpassant])
+						}
+					}
 					bitboard = popBit(bitboard, sourceSquare)
 				}
 			}
-		} else {
+			// white castling
+			if piece == K {
+				if castle&WK != 0 {
+					if getBit(occupancies[BOTH], f1) == 0 && getBit(occupancies[BOTH], g1) == 0 {
+						if isSquareAttacked(e1, BLACK) == 0 && isSquareAttacked(f1, BLACK) == 0 { // ??? why f1
+							fmt.Printf("e1g1    white kingside castle\n")
+						}
+					}
+				}
 
+				if castle&WQ != 0 {
+					if getBit(occupancies[BOTH], d1) == 0 && getBit(occupancies[BOTH], c1) == 0 && getBit(occupancies[BOTH], b1) == 0 {
+						if isSquareAttacked(e1, BLACK) == 0 && isSquareAttacked(d1, BLACK) == 0 { // ??? why d1
+							fmt.Printf("e1c1    white queenside castle\n")
+						}
+					}
+				}
+			}
+			// black pawns & king castling
+		} else {
+			if piece == p {
+				for bitboard > 0 {
+					sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+					targetSquare = sourceSquare + 8
+
+					if targetSquare < h1 && getBit(occupancies[BOTH], targetSquare) == 0 {
+						if sourceSquare >= a2 && sourceSquare <= h2 {
+							fmt.Printf("%s%s    black pawn promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    black pawn promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    black pawn promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    black pawn promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						} else {
+							fmt.Printf("%s%s    black pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+
+							if (sourceSquare >= a7 && sourceSquare <= h7) && getBit(occupancies[BOTH], targetSquare+8) == 0 {
+								fmt.Printf("%s%s    black double pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare+8])
+							}
+						}
+					}
+					// black captures
+					attacks = pawnAttacks[side][sourceSquare] & occupancies[WHITE]
+					for attacks > 0 {
+						targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+						if sourceSquare >= a2 && sourceSquare <= h2 {
+							fmt.Printf("%s%s    black pawn capture promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    black pawn capture promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    black pawn capture promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							fmt.Printf("%s%s    black pawn capture promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						} else {
+							fmt.Printf("%s%s    black pawn capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						}
+						attacks = popBit(attacks, targetSquare)
+					}
+
+					if enpassant != NO_SQ {
+						enpassantAttacks := pawnAttacks[side][sourceSquare] & (1 << enpassant)
+
+						if enpassantAttacks > 0 {
+							targetEnpassant := getLeastSignificantFirstBitIndex(enpassantAttacks)
+							fmt.Printf("%s%s    black pawn enpassant capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetEnpassant])
+						}
+					}
+					bitboard = popBit(bitboard, sourceSquare)
+				}
+			}
+			// black castling
+			if piece == k {
+				if castle&BK != 0 {
+					if getBit(occupancies[BOTH], f8) == 0 && getBit(occupancies[BOTH], g8) == 0 {
+						if isSquareAttacked(e8, WHITE) == 0 && isSquareAttacked(f8, WHITE) == 0 {
+							fmt.Printf("e8g8    black kingside castle\n")
+						}
+					}
+				}
+
+				if castle&BQ != 0 {
+					if getBit(occupancies[BOTH], d8) == 0 && getBit(occupancies[BOTH], c8) == 0 && getBit(occupancies[BOTH], b8) == 0 {
+						if isSquareAttacked(e8, WHITE) == 0 && isSquareAttacked(d8, WHITE) == 0 {
+							fmt.Printf("e8c8    black queenside castle\n")
+						}
+					}
+				}
+			}
 		}
 
 		// gen knight moves
+		if side == WHITE && piece == N {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = knightAttacks[sourceSquare] & ^occupancies[WHITE]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[BLACK], targetSquare) == 0 {
+						fmt.Printf("%s%s    white knight quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    white knight capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		} else if side == BLACK && piece == n {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = knightAttacks[sourceSquare] & ^occupancies[BLACK]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[WHITE], targetSquare) == 0 {
+						fmt.Printf("%s%s    black knight quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    black knight capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		}
 
 		// gen bishop moves
+		if side == WHITE && piece == B {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = getBishopAttacks(sourceSquare, occupancies[BOTH]) & ^occupancies[WHITE]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[BLACK], targetSquare) == 0 {
+						fmt.Printf("%s%s    white bishop quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    white bishop capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		} else if side == BLACK && piece == b {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = getBishopAttacks(sourceSquare, occupancies[BOTH]) & ^occupancies[BLACK]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[WHITE], targetSquare) == 0 {
+						fmt.Printf("%s%s    black bishop quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    black bishop capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		}
 
 		// gen rook moves
+		if side == WHITE && piece == R {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = getRookAttacks(sourceSquare, occupancies[BOTH]) & ^occupancies[WHITE]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[BLACK], targetSquare) == 0 {
+						fmt.Printf("%s%s    white rook quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    white rook capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		} else if side == BLACK && piece == r {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = getRookAttacks(sourceSquare, occupancies[BOTH]) & ^occupancies[BLACK]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[WHITE], targetSquare) == 0 {
+						fmt.Printf("%s%s    black rook quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    black rook capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		}
 
 		// gen queen moves
+		if side == WHITE && piece == Q {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = getQueenAttacks(sourceSquare, occupancies[BOTH]) & ^occupancies[WHITE]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[BLACK], targetSquare) == 0 {
+						fmt.Printf("%s%s    white queen quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    white queen capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		} else if side == BLACK && piece == q {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = getQueenAttacks(sourceSquare, occupancies[BOTH]) & ^occupancies[BLACK]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[WHITE], targetSquare) == 0 {
+						fmt.Printf("%s%s    black queen quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    black queen capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		}
 
 		// gen non-castling king moves
+		if side == WHITE && piece == K {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = kingAttacks[sourceSquare] & ^occupancies[WHITE]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[BLACK], targetSquare) == 0 {
+						fmt.Printf("%s%s    white king quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    white king capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		} else if side == BLACK && piece == k {
+			for bitboard > 0 {
+				sourceSquare = getLeastSignificantFirstBitIndex(bitboard)
+
+				attacks = kingAttacks[sourceSquare] & ^occupancies[BLACK]
+
+				for attacks > 0 {
+					targetSquare = getLeastSignificantFirstBitIndex(attacks)
+
+					// quiet move, else capture
+					if getBit(occupancies[WHITE], targetSquare) == 0 {
+						fmt.Printf("%s%s    black king quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					} else {
+						fmt.Printf("%s%s    black king capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+					}
+
+					attacks = popBit(attacks, targetSquare)
+				}
+
+				bitboard = popBit(bitboard, sourceSquare)
+			}
+		}
 	}
 }
 
@@ -1314,11 +1647,21 @@ func initAll() {
 ===========================================================
 \*********************************************************/
 
+/*
+0000 0000 0000 0000 0011 1111		source square
+0000 0000 0000 1111 1100 0000		target square
+0000 0000 0000 0000 0000 0000		piece
+0000 0000 0000 0000 0000 0000		promoted piece
+0000 0000 0000 0000 0000 0000		capture flag
+0000 0000 0000 0000 0000 0000		double pawn push flag
+0000 0000 0000 0000 0000 0000		capture flag
+0000 0000 0000 0000 0000 0000		enpassant capture
+0000 0000 0000 0000 0000 0000		castling flag
+*/
 func main() {
 	initAll()
 
-	parseFEN(TRICKY_POSITION)
+	parseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
 	printBoard()
-
-	generateMoves()
+	fmt.Printf("square h1: %d\n", h1)
 }
