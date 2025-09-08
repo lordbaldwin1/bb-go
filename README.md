@@ -2,6 +2,26 @@
 
 A bitboard-based chess engine implementation in Go!
 
+## Building and Running
+
+### Prerequisites
+- Go 1.18 or later
+
+### Build
+```bash
+go build -o bb-go main.go
+```
+
+### Run
+```bash
+./bb-go
+```
+
+Or run directly without building:
+```bash
+go run main.go
+```
+
 ## Bitboards Used
 
 ### Core Board Representation
