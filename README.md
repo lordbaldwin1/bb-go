@@ -1,6 +1,6 @@
 # bb-go
 
-A bitboard-based chess engine implementation in Go using magic bitboards for efficient move generation and attack calculations.
+A bitboard-based chess engine implementation in Go!
 
 ## Bitboards Used
 
