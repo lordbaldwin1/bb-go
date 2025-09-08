@@ -1194,119 +1194,6 @@ func getQueenAttacks(square int, occupancy uint64) uint64 {
 ===========================================================
 \*********************************************************/
 
-/*
-binary move bits																					hexadecimal constants
-
-0000 0000 0000 0000 0011 1111		source square							0x3f
-0000 0000 0000 1111 1100 0000		target square							0xfc0
-0000 0000 1111 0000 0000 0000		piece											0xf000
-0000 1111 0000 0000 0000 0000		promoted piece						0xf0000
-0001 0000 0000 0000 0000 0000		capture flag							0x100000
-0010 0000 0000 0000 0000 0000		double pawn push flag			0x200000
-0100 0000 0000 0000 0000 0000		enpassant capture					0x400000
-1000 0000 0000 0000 0000 0000		castling flag							0x800000
-*/
-
-func encodeMove(source, target, piece, promoted, capture, double, enpassant, castling int) int {
-	return source |
-		target<<6 |
-		piece<<12 |
-		promoted<<16 |
-		capture<<20 |
-		double<<21 |
-		enpassant<<22 |
-		castling<<23
-}
-
-func getMoveSourceSquare(move int) int {
-	return move & 0x3f
-}
-
-func getMoveTargetSquare(move int) int {
-	return (move & 0xfc0) >> 6
-}
-
-func getMovePiece(move int) int {
-	return (move & 0xf000) >> 12
-}
-
-func getMovePromotedPiece(move int) int {
-	return (move & 0xf0000) >> 16
-}
-
-// not shifted! check == 0 or > 0 for non-flagged/flagged respectively
-func getMoveCaptureFlag(move int) int {
-	return (move & 0x100000)
-}
-
-func getMoveDoublePawnPushFlag(move int) int {
-	return (move & 0x200000)
-}
-
-func getMoveEnpassantFlag(move int) int {
-	return (move & 0x400000)
-}
-
-func getMoveCastlingFlag(move int) int {
-	return (move & 0x800000)
-}
-
-type Moves struct {
-	moves [256]int
-	count int
-}
-
-func addMove(moveList *Moves, move int) {
-	moveList.moves[moveList.count] = move
-	moveList.count++
-}
-
-// for UCI
-func printMove(move int) {
-	fmt.Printf("%s%s%c\n",
-		SquareToCoordinates[getMoveSourceSquare(move)],
-		SquareToCoordinates[getMoveTargetSquare(move)],
-		promotedPieces[getMovePromotedPiece(move)])
-}
-
-// for debugging
-func printMoveList(moveList *Moves) {
-	fmt.Printf("\n    move     piece    capture    double    enpassant    castling\n")
-
-	for i := range moveList.count {
-		move := moveList.moves[i]
-
-		capture := 0
-		doublePawn := 0
-		enpassant := 0
-		castling := 0
-		if getMoveCaptureFlag(move) > 0 {
-			capture = 1
-		}
-		if getMoveDoublePawnPushFlag(move) > 0 {
-			doublePawn = 1
-		}
-		if getMoveEnpassantFlag(move) > 0 {
-			enpassant = 1
-		}
-		if getMoveCastlingFlag(move) > 0 {
-			castling = 1
-		}
-
-		fmt.Printf("    %s%s%c      %c         %d         %d           %d           %d\n",
-			SquareToCoordinates[getMoveSourceSquare(move)],
-			SquareToCoordinates[getMoveTargetSquare(move)],
-			promotedPieces[getMovePromotedPiece(move)],
-			asciiPieces[getMovePiece(move)],
-			capture,
-			doublePawn,
-			enpassant,
-			castling,
-		)
-		fmt.Println("\n\n    total number of moves:", moveList.count)
-	}
-}
-
 // is given square attacked by the given side?
 func isSquareAttacked(square, side int) int {
 	if side == WHITE && pawnAttacks[BLACK][square]&bitboards[P] > 0 {
@@ -1367,7 +1254,9 @@ func printAttackedSquares(side int) {
 	fmt.Println("\n      a  b  c  d  e  f  g  h ")
 }
 
-func generateMoves() {
+func generateMoves(moveList *Moves) {
+	moveList.count = 0
+
 	// define source & target squares
 	var sourceSquare int
 	var targetSquare int
@@ -1390,12 +1279,14 @@ func generateMoves() {
 					targetSquare = sourceSquare - 8
 					if targetSquare > a8 && getBit(occupancies[BOTH], targetSquare) == 0 {
 						if sourceSquare >= a7 && sourceSquare <= h7 {
-							fmt.Printf("%s%s    white pawn promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    white pawn promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    white pawn promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    white pawn promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, Q, 0, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, R, 0, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, B, 0, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, N, 0, 0, 0, 0))
 						} else {
 							fmt.Printf("%s%s    white pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
+
 							if (sourceSquare >= a2 && sourceSquare <= h2) && getBit(occupancies[BOTH], targetSquare-8) == 0 {
 								fmt.Printf("%s%s    white double pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare-8])
 							}
@@ -1742,6 +1633,133 @@ func generateMoves() {
 	}
 }
 
+/*
+binary move bits																					hexadecimal constants
+
+0000 0000 0000 0000 0011 1111		source square							0x3f
+0000 0000 0000 1111 1100 0000		target square							0xfc0
+0000 0000 1111 0000 0000 0000		piece											0xf000
+0000 1111 0000 0000 0000 0000		promoted piece						0xf0000
+0001 0000 0000 0000 0000 0000		capture flag							0x100000
+0010 0000 0000 0000 0000 0000		double pawn push flag			0x200000
+0100 0000 0000 0000 0000 0000		enpassant capture					0x400000
+1000 0000 0000 0000 0000 0000		castling flag							0x800000
+*/
+
+func encodeMove(source, target, piece, promoted, capture, double, enpassant, castling int) int {
+	return source |
+		target<<6 |
+		piece<<12 |
+		promoted<<16 |
+		capture<<20 |
+		double<<21 |
+		enpassant<<22 |
+		castling<<23
+}
+
+func getMoveSourceSquare(move int) int {
+	return move & 0x3f
+}
+
+func getMoveTargetSquare(move int) int {
+	return (move & 0xfc0) >> 6
+}
+
+func getMovePiece(move int) int {
+	return (move & 0xf000) >> 12
+}
+
+func getMovePromotedPiece(move int) int {
+	return (move & 0xf0000) >> 16
+}
+
+// not shifted! check == 0 or > 0 for non-flagged/flagged respectively
+func getMoveCaptureFlag(move int) int {
+	return (move & 0x100000)
+}
+
+func getMoveDoublePawnPushFlag(move int) int {
+	return (move & 0x200000)
+}
+
+func getMoveEnpassantFlag(move int) int {
+	return (move & 0x400000)
+}
+
+func getMoveCastlingFlag(move int) int {
+	return (move & 0x800000)
+}
+
+type Moves struct {
+	moves [256]int
+	count int
+}
+
+func addMove(moveList *Moves, move int) {
+	moveList.moves[moveList.count] = move
+	moveList.count++
+}
+
+// for UCI
+func printMove(move int) {
+	fmt.Printf("%s%s%c\n",
+		SquareToCoordinates[getMoveSourceSquare(move)],
+		SquareToCoordinates[getMoveTargetSquare(move)],
+		promotedPieces[getMovePromotedPiece(move)])
+}
+
+// for debugging
+func printMoveList(moveList *Moves) {
+	if moveList.count == 0 {
+		fmt.Printf("\n\n    No move in the move list!")
+		return
+	}
+
+	fmt.Printf("\n    move     piece    capture    double    enpassant    castling\n")
+
+	for i := range moveList.count {
+		move := moveList.moves[i]
+
+		capture := 0
+		doublePawn := 0
+		enpassant := 0
+		castling := 0
+		promotedPiece := 0
+		if getMoveCaptureFlag(move) > 0 {
+			capture = 1
+		}
+		if getMoveDoublePawnPushFlag(move) > 0 {
+			doublePawn = 1
+		}
+		if getMoveEnpassantFlag(move) > 0 {
+			enpassant = 1
+		}
+		if getMoveCastlingFlag(move) > 0 {
+			castling = 1
+		}
+		if getMovePromotedPiece(move) > 0 {
+			promotedPiece = int(promotedPieces[getMovePromotedPiece(move)])
+		}
+
+		promotedPieceChar := ' '
+		if promotedPiece > 0 {
+			promotedPieceChar = rune(promotedPiece)
+		}
+
+		fmt.Printf("    %s%s%c      %c         %d         %d           %d           %d\n",
+			SquareToCoordinates[getMoveSourceSquare(move)],
+			SquareToCoordinates[getMoveTargetSquare(move)],
+			promotedPieceChar,
+			asciiPieces[getMovePiece(move)],
+			capture,
+			doublePawn,
+			enpassant,
+			castling,
+		)
+	}
+	fmt.Println("\n\n    total number of moves:", moveList.count)
+}
+
 /*********************************************************\
 ===========================================================
 
@@ -1767,7 +1785,11 @@ func initAll() {
 func main() {
 	initAll()
 
+	parseFEN("r3k2r/pPppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
+	printBoard()
 	var moveList Moves
-	addMove(&moveList, encodeMove(d7, e8, P, Q, 1, 0, 1, 0))
+
+	generateMoves(&moveList)
+
 	printMoveList(&moveList)
 }
