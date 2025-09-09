@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strings"
 )
 
-const EMPTY_BOARD = "8/8/8/8/8/8/8/8 w - - "
+const EMPTY_BOARD = "8/8/8/8/8/8/8/8 b - - "
 const START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
 const TRICKY_POSITION = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
 const KILLER_POSITION = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1 "
@@ -185,20 +187,19 @@ var SquareToCoordinates = []string{
 	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 }
 
-// piece bitboards
+// states
 var bitboards = [12]uint64{}
-
-// occupancy bitboards
 var occupancies = [3]uint64{}
-
-// side to move
 var side int
-
-// enpassant square
 var enpassant int = NO_SQ
-
-// castling rights
 var castle int
+
+// copy of previous states
+var bitboardsCopy [12]uint64
+var occupanciesCopy [3]uint64
+var sideCopy int
+var enpassantCopy int
+var castleCopy int
 
 /*********************************************************\
 ===========================================================
@@ -395,13 +396,6 @@ func printBoard() {
 	}
 	fmt.Print("\n\n")
 }
-
-// parse FEN string
-// const EMPTY_BOARD = "8/8/8/8/8/8/8/8 w - - "
-// const START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
-// const TRICKY_POSITION = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
-// const KILLER_POSITION = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1 "
-// const CMK_POSITION = "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 "
 
 // add handling of malformed strings?
 func parseFEN(fen string) {
@@ -1254,6 +1248,55 @@ func printAttackedSquares(side int) {
 	fmt.Println("\n      a  b  c  d  e  f  g  h ")
 }
 
+func copyBoardState() {
+	copy(bitboardsCopy[:], bitboards[:])
+	copy(occupanciesCopy[:], occupancies[:])
+	sideCopy = side
+	enpassantCopy = enpassant
+	castleCopy = castle
+}
+
+func restorePreviousBoardState() {
+	copy(bitboards[:], bitboardsCopy[:])
+	copy(occupancies[:], occupanciesCopy[:])
+	side = sideCopy
+	enpassant = enpassantCopy
+	castle = castleCopy
+}
+
+const (
+	allMoves     = 0
+	onlyCaptures = 1
+)
+
+func makeMove(move, moveFlag int) int {
+	// quiet moves
+	if moveFlag == allMoves {
+		copyBoardState()
+
+		sourceSquare := getMoveSourceSquare(move)
+		targetSquare := getMoveTargetSquare(move)
+		piece := getMovePiece(move)
+		// promotion := getMovePromotedPiece(move)
+		// capture := getMoveCaptureFlag(move)
+		// double := getMoveDoublePawnPushFlag(move)
+		// enpassant := getMoveEnpassantFlag(move)
+		// castling := getMoveCastlingFlag(move)
+
+		bitboards[piece] = popBit(bitboards[piece], sourceSquare)
+		bitboards[piece] = setBit(bitboards[piece], targetSquare)
+	} else {
+		// capture moves
+		// make sure move is capture
+		if getMoveCaptureFlag(move) > 0 {
+			makeMove(move, allMoves)
+		} else {
+			return 0
+		}
+	}
+	return 0
+}
+
 func generateMoves(moveList *Moves) {
 	moveList.count = 0
 
@@ -1279,16 +1322,17 @@ func generateMoves(moveList *Moves) {
 					targetSquare = sourceSquare - 8
 					if targetSquare > a8 && getBit(occupancies[BOTH], targetSquare) == 0 {
 						if sourceSquare >= a7 && sourceSquare <= h7 {
+							// promotions
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, Q, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, R, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, B, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, N, 0, 0, 0, 0))
 						} else {
-							fmt.Printf("%s%s    white pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							// single/double push
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 
 							if (sourceSquare >= a2 && sourceSquare <= h2) && getBit(occupancies[BOTH], targetSquare-8) == 0 {
-								fmt.Printf("%s%s    white double pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare-8])
+								addMove(moveList, encodeMove(sourceSquare, targetSquare-8, piece, 0, 0, 1, 0, 0))
 							}
 						}
 					}
@@ -1298,12 +1342,14 @@ func generateMoves(moveList *Moves) {
 						targetSquare = getLeastSignificantFirstBitIndex(attacks)
 
 						if sourceSquare >= a7 && sourceSquare <= h7 {
-							fmt.Printf("%s%s    white pawn capture promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    white pawn capture promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    white pawn capture promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    white pawn capture promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							// promotion capture
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, Q, 1, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, R, 1, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, B, 1, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, N, 1, 0, 0, 0))
 						} else {
-							fmt.Printf("%s%s    white pawn capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							// capture
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 						}
 						attacks = popBit(attacks, targetSquare)
 					}
@@ -1314,7 +1360,7 @@ func generateMoves(moveList *Moves) {
 
 						if enpassantAttacks > 0 {
 							targetEnpassant := getLeastSignificantFirstBitIndex(enpassantAttacks)
-							fmt.Printf("%s%s    white pawn enpassant capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetEnpassant])
+							addMove(moveList, encodeMove(sourceSquare, targetEnpassant, piece, 0, 1, 0, 1, 0))
 						}
 					}
 					bitboard = popBit(bitboard, sourceSquare)
@@ -1324,16 +1370,16 @@ func generateMoves(moveList *Moves) {
 			if piece == K {
 				if castle&WK != 0 {
 					if getBit(occupancies[BOTH], f1) == 0 && getBit(occupancies[BOTH], g1) == 0 {
-						if isSquareAttacked(e1, BLACK) == 0 && isSquareAttacked(f1, BLACK) == 0 { // ??? why f1
-							fmt.Printf("e1g1    white kingside castle\n")
+						if isSquareAttacked(e1, BLACK) == 0 && isSquareAttacked(f1, BLACK) == 0 {
+							addMove(moveList, encodeMove(e1, g1, piece, 0, 0, 0, 0, 1))
 						}
 					}
 				}
 
 				if castle&WQ != 0 {
 					if getBit(occupancies[BOTH], d1) == 0 && getBit(occupancies[BOTH], c1) == 0 && getBit(occupancies[BOTH], b1) == 0 {
-						if isSquareAttacked(e1, BLACK) == 0 && isSquareAttacked(d1, BLACK) == 0 { // ??? why d1
-							fmt.Printf("e1c1    white queenside castle\n")
+						if isSquareAttacked(e1, BLACK) == 0 && isSquareAttacked(d1, BLACK) == 0 {
+							addMove(moveList, encodeMove(e1, c1, piece, 0, 0, 0, 0, 1))
 						}
 					}
 				}
@@ -1351,11 +1397,15 @@ func generateMoves(moveList *Moves) {
 							fmt.Printf("%s%s    black pawn promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
 							fmt.Printf("%s%s    black pawn promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
 							fmt.Printf("%s%s    black pawn promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, q, 0, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, r, 0, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, b, 0, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, n, 0, 0, 0, 0))
 						} else {
-							fmt.Printf("%s%s    black pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 
 							if (sourceSquare >= a7 && sourceSquare <= h7) && getBit(occupancies[BOTH], targetSquare+8) == 0 {
-								fmt.Printf("%s%s    black double pawn push\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare+8])
+								addMove(moveList, encodeMove(sourceSquare, targetSquare+8, piece, 0, 0, 1, 0, 0))
 							}
 						}
 					}
@@ -1365,12 +1415,12 @@ func generateMoves(moveList *Moves) {
 						targetSquare = getLeastSignificantFirstBitIndex(attacks)
 
 						if sourceSquare >= a2 && sourceSquare <= h2 {
-							fmt.Printf("%s%s    black pawn capture promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    black pawn capture promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    black pawn capture promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    black pawn capture promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, q, 1, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, r, 1, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, b, 1, 0, 0, 0))
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, n, 1, 0, 0, 0))
 						} else {
-							fmt.Printf("%s%s    black pawn capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 						}
 						attacks = popBit(attacks, targetSquare)
 					}
@@ -1380,7 +1430,7 @@ func generateMoves(moveList *Moves) {
 
 						if enpassantAttacks > 0 {
 							targetEnpassant := getLeastSignificantFirstBitIndex(enpassantAttacks)
-							fmt.Printf("%s%s    black pawn enpassant capture\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetEnpassant])
+							addMove(moveList, encodeMove(sourceSquare, targetEnpassant, piece, 0, 1, 0, 1, 0))
 						}
 					}
 					bitboard = popBit(bitboard, sourceSquare)
@@ -1391,7 +1441,7 @@ func generateMoves(moveList *Moves) {
 				if castle&BK != 0 {
 					if getBit(occupancies[BOTH], f8) == 0 && getBit(occupancies[BOTH], g8) == 0 {
 						if isSquareAttacked(e8, WHITE) == 0 && isSquareAttacked(f8, WHITE) == 0 {
-							fmt.Printf("e8g8    black kingside castle\n")
+							addMove(moveList, encodeMove(e8, g8, piece, 0, 0, 0, 0, 1))
 						}
 					}
 				}
@@ -1399,7 +1449,7 @@ func generateMoves(moveList *Moves) {
 				if castle&BQ != 0 {
 					if getBit(occupancies[BOTH], d8) == 0 && getBit(occupancies[BOTH], c8) == 0 && getBit(occupancies[BOTH], b8) == 0 {
 						if isSquareAttacked(e8, WHITE) == 0 && isSquareAttacked(d8, WHITE) == 0 {
-							fmt.Printf("e8c8    black queenside castle\n")
+							addMove(moveList, encodeMove(e8, c8, piece, 0, 0, 0, 0, 1))
 						}
 					}
 				}
@@ -1418,9 +1468,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[BLACK], targetSquare) == 0 {
-						fmt.Printf("%s%s    white knight quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    white knight capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1439,9 +1489,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[WHITE], targetSquare) == 0 {
-						fmt.Printf("%s%s    black knight quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    black knight capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1463,9 +1513,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[BLACK], targetSquare) == 0 {
-						fmt.Printf("%s%s    white bishop quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    white bishop capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1484,9 +1534,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[WHITE], targetSquare) == 0 {
-						fmt.Printf("%s%s    black bishop quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    black bishop capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1508,9 +1558,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[BLACK], targetSquare) == 0 {
-						fmt.Printf("%s%s    white rook quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    white rook capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1529,9 +1579,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[WHITE], targetSquare) == 0 {
-						fmt.Printf("%s%s    black rook quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    black rook capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1553,9 +1603,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[BLACK], targetSquare) == 0 {
-						fmt.Printf("%s%s    white queen quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    white queen capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1574,9 +1624,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[WHITE], targetSquare) == 0 {
-						fmt.Printf("%s%s    black queen quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    black queen capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1598,9 +1648,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[BLACK], targetSquare) == 0 {
-						fmt.Printf("%s%s    white king quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    white king capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1619,9 +1669,9 @@ func generateMoves(moveList *Moves) {
 
 					// quiet move, else capture
 					if getBit(occupancies[WHITE], targetSquare) == 0 {
-						fmt.Printf("%s%s    black king quiet move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 					} else {
-						fmt.Printf("%s%s    black king capture move\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+						addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 1, 0, 0, 0))
 					}
 
 					attacks = popBit(attacks, targetSquare)
@@ -1711,7 +1761,7 @@ func printMove(move int) {
 // for debugging
 func printMoveList(moveList *Moves) {
 	if moveList.count == 0 {
-		fmt.Printf("\n\n    No move in the move list!")
+		fmt.Printf("\n    No moves in the move list!\n")
 		return
 	}
 
@@ -1785,11 +1835,23 @@ func initAll() {
 func main() {
 	initAll()
 
-	parseFEN("r3k2r/pPppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
+	parseFEN(TRICKY_POSITION)
 	printBoard()
-	var moveList Moves
 
+	var moveList Moves
 	generateMoves(&moveList)
 
-	printMoveList(&moveList)
+	reader := bufio.NewReader(os.Stdin)
+	for i := range moveList.count {
+		move := moveList.moves[i]
+
+		copyBoardState()
+		makeMove(move, 0)
+		printBoard()
+		reader.ReadRune()
+
+		restorePreviousBoardState()
+		printBoard()
+		reader.ReadRune()
+	}
 }
