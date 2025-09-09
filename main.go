@@ -1277,14 +1277,45 @@ func makeMove(move, moveFlag int) int {
 		sourceSquare := getMoveSourceSquare(move)
 		targetSquare := getMoveTargetSquare(move)
 		piece := getMovePiece(move)
-		// promotion := getMovePromotedPiece(move)
-		// capture := getMoveCaptureFlag(move)
+		promotion := getMovePromotedPiece(move)
+		capture := getMoveCaptureFlag(move)
 		// double := getMoveDoublePawnPushFlag(move)
 		// enpassant := getMoveEnpassantFlag(move)
 		// castling := getMoveCastlingFlag(move)
 
+		// move piece
 		bitboards[piece] = popBit(bitboards[piece], sourceSquare)
-		bitboards[piece] = setBit(bitboards[piece], targetSquare)
+
+		// promotion
+		if promotion > 0 {
+			bitboards[promotion] = setBit(bitboards[promotion], targetSquare)
+		} else {
+			bitboards[piece] = setBit(bitboards[piece], targetSquare)
+		}
+
+		// double pawn push
+
+		// handle capture moves
+		if capture > 0 {
+			var startPiece int
+			var endPiece int
+
+			// loop over piece bitboards to remove captured piece from board
+			if side == WHITE {
+				startPiece = p
+				endPiece = k
+			} else {
+				startPiece = P
+				endPiece = K
+			}
+			for bbPiece := startPiece; bbPiece <= endPiece; bbPiece++ {
+				// if there is a piece on target square,
+				if getBit(bitboards[bbPiece], targetSquare) > 0 {
+					bitboards[bbPiece] = popBit(bitboards[bbPiece], targetSquare)
+					break
+				}
+			}
+		}
 	} else {
 		// capture moves
 		// make sure move is capture
@@ -1393,17 +1424,16 @@ func generateMoves(moveList *Moves) {
 
 					if targetSquare < h1 && getBit(occupancies[BOTH], targetSquare) == 0 {
 						if sourceSquare >= a2 && sourceSquare <= h2 {
-							fmt.Printf("%s%s    black pawn promotion to queen\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    black pawn promotion to rook\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    black pawn promotion to bishop\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
-							fmt.Printf("%s%s    black pawn promotion to knight\n", SquareToCoordinates[sourceSquare], SquareToCoordinates[targetSquare])
+							// black pawn promotions
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, q, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, r, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, b, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, n, 0, 0, 0, 0))
 						} else {
+							// black push
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, 0, 0, 0, 0, 0))
 
+							// black double pawn push
 							if (sourceSquare >= a7 && sourceSquare <= h7) && getBit(occupancies[BOTH], targetSquare+8) == 0 {
 								addMove(moveList, encodeMove(sourceSquare, targetSquare+8, piece, 0, 0, 1, 0, 0))
 							}
@@ -1835,7 +1865,7 @@ func initAll() {
 func main() {
 	initAll()
 
-	parseFEN(TRICKY_POSITION)
+	parseFEN("r3k2r/pPppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
 	printBoard()
 
 	var moveList Moves
@@ -1844,14 +1874,14 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	for i := range moveList.count {
 		move := moveList.moves[i]
-
-		copyBoardState()
 		makeMove(move, 0)
-		printBoard()
+		//printBoard()
+		printBitboard(bitboards[r])
 		reader.ReadRune()
 
 		restorePreviousBoardState()
-		printBoard()
+		//printBoard()
+		printBitboard(bitboards[r])
 		reader.ReadRune()
 	}
 }
