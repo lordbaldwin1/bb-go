@@ -1413,7 +1413,7 @@ func makeMove(move, moveFlag int) int {
 		// remove piece from source square and update occupancies
 		bitboards[piece] = popBit(bitboards[piece], sourceSquare)
 		occupancies[BOTH] = popBit(occupancies[BOTH], sourceSquare)
-		if piece >= P && piece <= K {
+		if side == WHITE {
 			occupancies[WHITE] = popBit(occupancies[WHITE], sourceSquare)
 		} else {
 			occupancies[BLACK] = popBit(occupancies[BLACK], sourceSquare)
@@ -1423,7 +1423,7 @@ func makeMove(move, moveFlag int) int {
 		if promotedPiece > 0 {
 			bitboards[promotedPiece] = setBit(bitboards[promotedPiece], targetSquare)
 			occupancies[BOTH] = setBit(occupancies[BOTH], targetSquare)
-			if promotedPiece >= P && promotedPiece <= K {
+			if side == WHITE {
 				occupancies[WHITE] = setBit(occupancies[WHITE], targetSquare)
 			} else {
 				occupancies[BLACK] = setBit(occupancies[BLACK], targetSquare)
@@ -1431,7 +1431,7 @@ func makeMove(move, moveFlag int) int {
 		} else {
 			bitboards[piece] = setBit(bitboards[piece], targetSquare)
 			occupancies[BOTH] = setBit(occupancies[BOTH], targetSquare)
-			if piece >= P && piece <= K {
+			if side == WHITE {
 				occupancies[WHITE] = setBit(occupancies[WHITE], targetSquare)
 			} else {
 				occupancies[BLACK] = setBit(occupancies[BLACK], targetSquare)
@@ -1451,14 +1451,12 @@ func makeMove(move, moveFlag int) int {
 			}
 			bitboards[capturePiece] = popBit(bitboards[capturePiece], captureSquare)
 			occupancies[BOTH] = popBit(occupancies[BOTH], captureSquare)
-			if capturePiece >= P && capturePiece <= K {
-				occupancies[WHITE] = popBit(occupancies[WHITE], captureSquare)
-			} else {
+			if side == WHITE {
 				occupancies[BLACK] = popBit(occupancies[BLACK], captureSquare)
+			} else {
+				occupancies[WHITE] = popBit(occupancies[WHITE], captureSquare)
 			}
 		}
-
-		// where we put this in relation to double pawn push?
 		enpassant = NO_SQ
 
 		// double pawn push
@@ -1547,9 +1545,10 @@ func makeMove(move, moveFlag int) int {
 				fmt.Println("ILLEGAL MOVE")
 				restorePreviousBoardState()
 				return 0
+			} else {
+				return 1
 			}
 		}
-		return 1
 	} else {
 		// capture moves
 		// make sure move is capture
@@ -1559,7 +1558,7 @@ func makeMove(move, moveFlag int) int {
 			return 0
 		}
 	}
-	return 0
+	return 1
 }
 
 func generateMoves(moveList *Moves) {
@@ -2099,7 +2098,7 @@ func initAll() {
 func main() {
 	initAll()
 
-	parseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
+	parseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBrPPP/R3K2R w KQkq - 0 1 ")
 	printBoard()
 
 	var moveList Moves
@@ -2112,13 +2111,13 @@ func main() {
 		if makeMove(move, allMoves) == 0 {
 			continue
 		}
-		printBitboard(occupancies[WHITE])
-
 		printBoard()
+		// printBitboard(occupancies[BLACK])
 		reader.ReadRune()
 
 		restorePreviousBoardState()
 		printBoard()
+		// printBitboard(occupancies[BLACK])
 		reader.ReadRune()
 	}
 }
