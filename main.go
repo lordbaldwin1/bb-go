@@ -2112,6 +2112,7 @@ func main() {
 		if makeMove(move, allMoves) == 0 {
 			continue
 		}
+		printBitboard(occupancies[WHITE])
 
 		printBoard()
 		reader.ReadRune()

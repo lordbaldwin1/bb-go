@@ -2,6 +2,11 @@
 
 A bitboard-based chess engine implementation in Go!
 
+## TODO
+- make sure occupancies are being updated and restored properly
+- make sure checking if king is in check is working properly
+
+
 ## Building and Running
 
 ### Prerequisites
