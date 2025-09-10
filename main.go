@@ -1269,6 +1269,133 @@ const (
 	onlyCaptures = 1
 )
 
+var castlingRights = [64]int{
+	7, 15, 15, 15, 3, 15, 15, 11,
+	15, 15, 15, 15, 15, 15, 15, 15,
+	15, 15, 15, 15, 15, 15, 15, 15,
+	15, 15, 15, 15, 15, 15, 15, 15,
+	15, 15, 15, 15, 15, 15, 15, 15,
+	15, 15, 15, 15, 15, 15, 15, 15,
+	15, 15, 15, 15, 15, 15, 15, 15,
+	13, 15, 15, 15, 12, 15, 15, 14,
+}
+
+// func makeMove(move, moveFlag int) int {
+// 	// quiet moves
+// 	if moveFlag == allMoves {
+// 		copyBoardState()
+
+// 		sourceSquare := getMoveSourceSquare(move)
+// 		targetSquare := getMoveTargetSquare(move)
+// 		piece := getMovePiece(move)
+// 		promotedPiece := getMovePromotedPiece(move)
+// 		capture := getMoveCaptureFlag(move)
+// 		double := getMoveDoublePawnPushFlag(move)
+// 		enpass := getMoveEnpassantFlag(move)
+// 		castling := getMoveCastlingFlag(move)
+
+// 		// remove piece, then we'll set the piece
+// 		bitboards[piece] = popBit(bitboards[piece], sourceSquare)
+
+// 		// promotion
+// 		if promotedPiece > 0 {
+// 			bitboards[promotedPiece] = setBit(bitboards[promotedPiece], targetSquare)
+// 		} else {
+// 			bitboards[piece] = setBit(bitboards[piece], targetSquare)
+// 		}
+
+// 		if enpass > 0 {
+// 			var captureSquare int
+// 			var capturePiece int
+// 			if side == WHITE {
+// 				captureSquare = targetSquare + 8
+// 				capturePiece = p
+// 			} else {
+// 				captureSquare = targetSquare - 8
+// 				capturePiece = P
+// 			}
+// 			bitboards[capturePiece] = popBit(bitboards[capturePiece], captureSquare)
+// 		}
+// 		// where we put this in relation to double pawn push?
+// 		enpassant = NO_SQ
+
+// 		// double pawn push
+// 		if double > 0 {
+// 			// setup enpassant square
+// 			if side == WHITE {
+// 				enpassant = targetSquare + 8
+// 			} else {
+// 				enpassant = targetSquare - 8
+// 			}
+// 		}
+
+// 		// castling
+// 		if castling > 0 {
+// 			switch targetSquare {
+// 			case g1:
+// 				bitboards[R] = popBit(bitboards[R], h1)
+// 				bitboards[R] = setBit(bitboards[R], f1)
+// 			case c1:
+// 				bitboards[R] = popBit(bitboards[R], a1)
+// 				bitboards[R] = setBit(bitboards[R], d1)
+// 			case g8:
+// 				bitboards[r] = popBit(bitboards[r], h8)
+// 				bitboards[r] = setBit(bitboards[r], f8)
+// 			case c8:
+// 				bitboards[r] = popBit(bitboards[r], a8)
+// 				bitboards[r] = setBit(bitboards[r], d8)
+// 			}
+// 		}
+// 		// update castling rights
+// 		castle &= castlingRights[sourceSquare]
+// 		castle &= castlingRights[targetSquare]
+
+// 		// handle capture moves
+// 		if capture > 0 {
+// 			var startPiece int
+// 			var endPiece int
+
+// 			// loop over piece bitboards to remove captured piece from board
+// 			if side == WHITE {
+// 				startPiece = p
+// 				endPiece = k
+// 			} else {
+// 				startPiece = P
+// 				endPiece = K
+// 			}
+// 			for bbPiece := startPiece; bbPiece <= endPiece; bbPiece++ {
+// 				// if there is a piece on target square,
+// 				if getBit(bitboards[bbPiece], targetSquare) > 0 {
+// 					bitboards[bbPiece] = popBit(bitboards[bbPiece], targetSquare)
+// 					break
+// 				}
+// 			}
+// 		}
+// 		// update occupancies (maybe incrementally do it in above code?)
+// 		occupancies[WHITE] = 0
+// 		occupancies[BLACK] = 0
+// 		occupancies[BOTH] = 0
+
+// 		for i := P; i <= K; i++ {
+// 			occupancies[WHITE] |= bitboards[i]
+// 		}
+// 		for i := p; i <= k; i++ {
+// 			occupancies[BLACK] |= bitboards[i]
+// 		}
+// 		occupancies[BOTH] |= occupancies[WHITE]
+// 		occupancies[BOTH] |= occupancies[BLACK]
+// 	} else {
+// 		// capture moves
+// 		// make sure move is capture
+// 		if getMoveCaptureFlag(move) > 0 {
+// 			makeMove(move, allMoves)
+// 		} else {
+// 			return 0
+// 		}
+// 	}
+// 	return 0
+// }
+
 func makeMove(move, moveFlag int) int {
 	// quiet moves
 	if moveFlag == allMoves {
@@ -1277,23 +1404,110 @@ func makeMove(move, moveFlag int) int {
 		sourceSquare := getMoveSourceSquare(move)
 		targetSquare := getMoveTargetSquare(move)
 		piece := getMovePiece(move)
-		promotion := getMovePromotedPiece(move)
+		promotedPiece := getMovePromotedPiece(move)
 		capture := getMoveCaptureFlag(move)
-		// double := getMoveDoublePawnPushFlag(move)
-		// enpassant := getMoveEnpassantFlag(move)
-		// castling := getMoveCastlingFlag(move)
+		double := getMoveDoublePawnPushFlag(move)
+		enpass := getMoveEnpassantFlag(move)
+		castling := getMoveCastlingFlag(move)
 
-		// move piece
+		// remove piece from source square and update occupancies
 		bitboards[piece] = popBit(bitboards[piece], sourceSquare)
-
-		// promotion
-		if promotion > 0 {
-			bitboards[promotion] = setBit(bitboards[promotion], targetSquare)
+		occupancies[BOTH] = popBit(occupancies[BOTH], sourceSquare)
+		if piece >= P && piece <= K {
+			occupancies[WHITE] = popBit(occupancies[WHITE], sourceSquare)
 		} else {
-			bitboards[piece] = setBit(bitboards[piece], targetSquare)
+			occupancies[BLACK] = popBit(occupancies[BLACK], sourceSquare)
 		}
 
+		// promotion
+		if promotedPiece > 0 {
+			bitboards[promotedPiece] = setBit(bitboards[promotedPiece], targetSquare)
+			occupancies[BOTH] = setBit(occupancies[BOTH], targetSquare)
+			if promotedPiece >= P && promotedPiece <= K {
+				occupancies[WHITE] = setBit(occupancies[WHITE], targetSquare)
+			} else {
+				occupancies[BLACK] = setBit(occupancies[BLACK], targetSquare)
+			}
+		} else {
+			bitboards[piece] = setBit(bitboards[piece], targetSquare)
+			occupancies[BOTH] = setBit(occupancies[BOTH], targetSquare)
+			if piece >= P && piece <= K {
+				occupancies[WHITE] = setBit(occupancies[WHITE], targetSquare)
+			} else {
+				occupancies[BLACK] = setBit(occupancies[BLACK], targetSquare)
+			}
+		}
+
+		// en passant capture
+		if enpass > 0 {
+			var captureSquare int
+			var capturePiece int
+			if side == WHITE {
+				captureSquare = targetSquare + 8
+				capturePiece = p
+			} else {
+				captureSquare = targetSquare - 8
+				capturePiece = P
+			}
+			bitboards[capturePiece] = popBit(bitboards[capturePiece], captureSquare)
+			occupancies[BOTH] = popBit(occupancies[BOTH], captureSquare)
+			if capturePiece >= P && capturePiece <= K {
+				occupancies[WHITE] = popBit(occupancies[WHITE], captureSquare)
+			} else {
+				occupancies[BLACK] = popBit(occupancies[BLACK], captureSquare)
+			}
+		}
+
+		// where we put this in relation to double pawn push?
+		enpassant = NO_SQ
+
 		// double pawn push
+		if double > 0 {
+			// setup enpassant square
+			if side == WHITE {
+				enpassant = targetSquare + 8
+			} else {
+				enpassant = targetSquare - 8
+			}
+		}
+
+		// castling - move rook and update occupancies
+		if castling > 0 {
+			switch targetSquare {
+			case g1:
+				bitboards[R] = popBit(bitboards[R], h1)
+				bitboards[R] = setBit(bitboards[R], f1)
+				occupancies[BOTH] = popBit(occupancies[BOTH], h1)
+				occupancies[BOTH] = setBit(occupancies[BOTH], f1)
+				occupancies[WHITE] = popBit(occupancies[WHITE], h1)
+				occupancies[WHITE] = setBit(occupancies[WHITE], f1)
+			case c1:
+				bitboards[R] = popBit(bitboards[R], a1)
+				bitboards[R] = setBit(bitboards[R], d1)
+				occupancies[BOTH] = popBit(occupancies[BOTH], a1)
+				occupancies[BOTH] = setBit(occupancies[BOTH], d1)
+				occupancies[WHITE] = popBit(occupancies[WHITE], a1)
+				occupancies[WHITE] = setBit(occupancies[WHITE], d1)
+			case g8:
+				bitboards[r] = popBit(bitboards[r], h8)
+				bitboards[r] = setBit(bitboards[r], f8)
+				occupancies[BOTH] = popBit(occupancies[BOTH], h8)
+				occupancies[BOTH] = setBit(occupancies[BOTH], f8)
+				occupancies[BLACK] = popBit(occupancies[BLACK], h8)
+				occupancies[BLACK] = setBit(occupancies[BLACK], f8)
+			case c8:
+				bitboards[r] = popBit(bitboards[r], a8)
+				bitboards[r] = setBit(bitboards[r], d8)
+				occupancies[BOTH] = popBit(occupancies[BOTH], a8)
+				occupancies[BOTH] = setBit(occupancies[BOTH], d8)
+				occupancies[BLACK] = popBit(occupancies[BLACK], a8)
+				occupancies[BLACK] = setBit(occupancies[BLACK], d8)
+			}
+		}
+
+		// update castling rights
+		castle &= castlingRights[sourceSquare]
+		castle &= castlingRights[targetSquare]
 
 		// handle capture moves
 		if capture > 0 {
@@ -1312,10 +1526,30 @@ func makeMove(move, moveFlag int) int {
 				// if there is a piece on target square,
 				if getBit(bitboards[bbPiece], targetSquare) > 0 {
 					bitboards[bbPiece] = popBit(bitboards[bbPiece], targetSquare)
+					occupancies[BOTH] = popBit(occupancies[BOTH], targetSquare)
+					if bbPiece >= P && bbPiece <= K {
+						occupancies[WHITE] = popBit(occupancies[WHITE], targetSquare)
+					} else {
+						occupancies[BLACK] = popBit(occupancies[BLACK], targetSquare)
+					}
 					break
 				}
 			}
+
+			// check if king is in check (WIP)!
+			side ^= 1
+
+			if side == WHITE && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[k]), side) > 0 {
+				fmt.Println("ILLEGAL MOVE")
+				restorePreviousBoardState()
+				return 0
+			} else if side == BLACK && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[K]), side) > 0 {
+				fmt.Println("ILLEGAL MOVE")
+				restorePreviousBoardState()
+				return 0
+			}
 		}
+		return 1
 	} else {
 		// capture moves
 		// make sure move is capture
@@ -1865,7 +2099,7 @@ func initAll() {
 func main() {
 	initAll()
 
-	parseFEN("r3k2r/pPppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
+	parseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
 	printBoard()
 
 	var moveList Moves
@@ -1874,14 +2108,16 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	for i := range moveList.count {
 		move := moveList.moves[i]
-		makeMove(move, 0)
-		//printBoard()
-		printBitboard(bitboards[r])
+
+		if makeMove(move, allMoves) == 0 {
+			continue
+		}
+
+		printBoard()
 		reader.ReadRune()
 
 		restorePreviousBoardState()
-		//printBoard()
-		printBitboard(bitboards[r])
+		printBoard()
 		reader.ReadRune()
 	}
 }
