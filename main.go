@@ -1384,6 +1384,19 @@ var castlingRights = [64]int{
 // 		}
 // 		occupancies[BOTH] |= occupancies[WHITE]
 // 		occupancies[BOTH] |= occupancies[BLACK]
+
+// 		// check if king is in check (WIP)!
+// 		side ^= 1
+
+// 		if side == WHITE && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[k]), side) > 0 {
+// 			restorePreviousBoardState()
+// 			return -1
+// 		} else if side == BLACK && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[K]), side) > 0 {
+// 			restorePreviousBoardState()
+// 			return -1
+// 		} else {
+// 			return 1
+// 		}
 // 	} else {
 // 		// capture moves
 // 		// make sure move is capture
@@ -1533,21 +1546,18 @@ func makeMove(move, moveFlag int) int {
 					break
 				}
 			}
+		}
+		// check if king is in check (WIP)!
+		side ^= 1
 
-			// check if king is in check (WIP)!
-			side ^= 1
-
-			if side == WHITE && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[k]), side) > 0 {
-				fmt.Println("ILLEGAL MOVE")
-				restorePreviousBoardState()
-				return 0
-			} else if side == BLACK && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[K]), side) > 0 {
-				fmt.Println("ILLEGAL MOVE")
-				restorePreviousBoardState()
-				return 0
-			} else {
-				return 1
-			}
+		if side == WHITE && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[k]), side) > 0 {
+			restorePreviousBoardState()
+			return -1
+		} else if side == BLACK && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[K]), side) > 0 {
+			restorePreviousBoardState()
+			return -1
+		} else {
+			return 1
 		}
 	} else {
 		// capture moves
@@ -1555,7 +1565,7 @@ func makeMove(move, moveFlag int) int {
 		if getMoveCaptureFlag(move) > 0 {
 			makeMove(move, allMoves)
 		} else {
-			return 0
+			return -1
 		}
 	}
 	return 1
@@ -2095,6 +2105,10 @@ func initAll() {
 ===========================================================
 \*********************************************************/
 
+func getTimeMS() {
+
+}
+
 func main() {
 	initAll()
 
@@ -2108,16 +2122,14 @@ func main() {
 	for i := range moveList.count {
 		move := moveList.moves[i]
 
-		if makeMove(move, allMoves) == 0 {
+		if makeMove(move, allMoves) == -1 {
 			continue
 		}
 		printBoard()
-		// printBitboard(occupancies[BLACK])
 		reader.ReadRune()
 
 		restorePreviousBoardState()
 		printBoard()
-		// printBitboard(occupancies[BLACK])
 		reader.ReadRune()
 	}
 }
