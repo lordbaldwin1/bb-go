@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
+	"time"
 )
 
 const EMPTY_BOARD = "8/8/8/8/8/8/8/8 b - - "
@@ -2105,31 +2104,43 @@ func initAll() {
 ===========================================================
 \*********************************************************/
 
-func getTimeMS() {
-
+func getTimeMS() int64 {
+	return time.Now().UnixMilli()
 }
 
-func main() {
-	initAll()
+var nodesCount uint64
 
-	parseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBrPPP/R3K2R w KQkq - 0 1 ")
-	printBoard()
+func perftDriver(depth int) {
+	if depth == 0 {
+		nodesCount++
+		return
+	}
 
-	var moveList Moves
-	generateMoves(&moveList)
-
-	reader := bufio.NewReader(os.Stdin)
 	for i := range moveList.count {
 		move := moveList.moves[i]
 
 		if makeMove(move, allMoves) == -1 {
 			continue
 		}
-		printBoard()
-		reader.ReadRune()
+
+		perftDriver(depth - 1)
 
 		restorePreviousBoardState()
-		printBoard()
-		reader.ReadRune()
+
 	}
+}
+
+func main() {
+	initAll()
+
+	parseFEN(TRICKY_POSITION)
+	printBoard()
+
+	var moveList Moves
+	generateMoves(&moveList)
+
+	startTime := getTimeMS()
+
+	endTime := getTimeMS()
+	fmt.Printf("\n\n Time elapsed: %dms\n", endTime-startTime)
 }
