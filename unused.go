@@ -155,3 +155,166 @@ var _ = bishopMasks
 var _ = rookMasks
 var _ = bishopAttacks
 var _ = rookAttacks
+
+// func makeMove(move, moveFlag int) int {
+// 	// quiet moves
+// 	if moveFlag == allMoves {
+// 		copyBoardState()
+
+// 		sourceSquare := getMoveSourceSquare(move)
+// 		targetSquare := getMoveTargetSquare(move)
+// 		piece := getMovePiece(move)
+// 		promotedPiece := getMovePromotedPiece(move)
+// 		capture := getMoveCaptureFlag(move)
+// 		double := getMoveDoublePawnPushFlag(move)
+// 		enpass := getMoveEnpassantFlag(move)
+// 		castling := getMoveCastlingFlag(move)
+
+// 		// remove piece from source square and update occupancies
+// 		bitboards[piece] = popBit(bitboards[piece], sourceSquare)
+// 		occupancies[BOTH] = popBit(occupancies[BOTH], sourceSquare)
+// 		if side == WHITE {
+// 			occupancies[WHITE] = popBit(occupancies[WHITE], sourceSquare)
+// 		} else {
+// 			occupancies[BLACK] = popBit(occupancies[BLACK], sourceSquare)
+// 		}
+
+// 		// handle capture moves
+// 		if capture > 0 {
+// 			var startPiece int
+// 			var endPiece int
+
+// 			// loop over piece bitboards to remove captured piece from board
+// 			if side == WHITE {
+// 				startPiece = p
+// 				endPiece = k
+// 			} else {
+// 				startPiece = P
+// 				endPiece = K
+// 			}
+// 			for bbPiece := startPiece; bbPiece <= endPiece; bbPiece++ {
+// 				// if there is a piece on target square,
+// 				if getBit(bitboards[bbPiece], targetSquare) > 0 {
+// 					bitboards[bbPiece] = popBit(bitboards[bbPiece], targetSquare)
+// 					occupancies[BOTH] = popBit(occupancies[BOTH], targetSquare)
+// 					if bbPiece >= P && bbPiece <= K {
+// 						occupancies[WHITE] = popBit(occupancies[WHITE], targetSquare)
+// 					} else {
+// 						occupancies[BLACK] = popBit(occupancies[BLACK], targetSquare)
+// 					}
+// 					break
+// 				}
+// 			}
+// 		}
+
+// 		// pawn promotions
+// 		if promotedPiece > 0 {
+// 			bitboards[promotedPiece] = setBit(bitboards[promotedPiece], targetSquare)
+// 			occupancies[BOTH] = setBit(occupancies[BOTH], targetSquare)
+// 			if side == WHITE {
+// 				occupancies[WHITE] = setBit(occupancies[WHITE], targetSquare)
+// 			} else {
+// 				occupancies[BLACK] = setBit(occupancies[BLACK], targetSquare)
+// 			}
+// 		} else {
+// 			bitboards[piece] = setBit(bitboards[piece], targetSquare)
+// 			occupancies[BOTH] = setBit(occupancies[BOTH], targetSquare)
+// 			if side == WHITE {
+// 				occupancies[WHITE] = setBit(occupancies[WHITE], targetSquare)
+// 			} else {
+// 				occupancies[BLACK] = setBit(occupancies[BLACK], targetSquare)
+// 			}
+// 		}
+
+// 		// en passant capture
+// 		if enpass > 0 {
+// 			var captureSquare int
+// 			var capturePiece int
+// 			if side == WHITE {
+// 				captureSquare = targetSquare + 8
+// 				capturePiece = p
+// 			} else {
+// 				captureSquare = targetSquare - 8
+// 				capturePiece = P
+// 			}
+// 			bitboards[capturePiece] = popBit(bitboards[capturePiece], captureSquare)
+// 			occupancies[BOTH] = popBit(occupancies[BOTH], captureSquare)
+// 			if side == WHITE {
+// 				occupancies[BLACK] = popBit(occupancies[BLACK], captureSquare)
+// 			} else {
+// 				occupancies[WHITE] = popBit(occupancies[WHITE], captureSquare)
+// 			}
+// 		}
+// 		enpassant = NO_SQ
+
+// 		// double pawn push
+// 		if double > 0 {
+// 			// setup enpassant square
+// 			if side == WHITE {
+// 				enpassant = targetSquare + 8
+// 			} else {
+// 				enpassant = targetSquare - 8
+// 			}
+// 		}
+
+// 		// castling - move rook and update occupancies
+// 		if castling > 0 {
+// 			switch targetSquare {
+// 			case g1:
+// 				bitboards[R] = popBit(bitboards[R], h1)
+// 				bitboards[R] = setBit(bitboards[R], f1)
+// 				occupancies[BOTH] = popBit(occupancies[BOTH], h1)
+// 				occupancies[BOTH] = setBit(occupancies[BOTH], f1)
+// 				occupancies[WHITE] = popBit(occupancies[WHITE], h1)
+// 				occupancies[WHITE] = setBit(occupancies[WHITE], f1)
+// 			case c1:
+// 				bitboards[R] = popBit(bitboards[R], a1)
+// 				bitboards[R] = setBit(bitboards[R], d1)
+// 				occupancies[BOTH] = popBit(occupancies[BOTH], a1)
+// 				occupancies[BOTH] = setBit(occupancies[BOTH], d1)
+// 				occupancies[WHITE] = popBit(occupancies[WHITE], a1)
+// 				occupancies[WHITE] = setBit(occupancies[WHITE], d1)
+// 			case g8:
+// 				bitboards[r] = popBit(bitboards[r], h8)
+// 				bitboards[r] = setBit(bitboards[r], f8)
+// 				occupancies[BOTH] = popBit(occupancies[BOTH], h8)
+// 				occupancies[BOTH] = setBit(occupancies[BOTH], f8)
+// 				occupancies[BLACK] = popBit(occupancies[BLACK], h8)
+// 				occupancies[BLACK] = setBit(occupancies[BLACK], f8)
+// 			case c8:
+// 				bitboards[r] = popBit(bitboards[r], a8)
+// 				bitboards[r] = setBit(bitboards[r], d8)
+// 				occupancies[BOTH] = popBit(occupancies[BOTH], a8)
+// 				occupancies[BOTH] = setBit(occupancies[BOTH], d8)
+// 				occupancies[BLACK] = popBit(occupancies[BLACK], a8)
+// 				occupancies[BLACK] = setBit(occupancies[BLACK], d8)
+// 			}
+// 		}
+
+// 		// update castling rights
+// 		castle &= castlingRights[sourceSquare]
+// 		castle &= castlingRights[targetSquare]
+
+// 		// check if king is in check (WIP)!
+// 		side ^= 1
+
+// 		if side == WHITE && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[k]), side) > 0 {
+// 			restorePreviousBoardState()
+// 			return -1
+// 		} else if side == BLACK && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[K]), side) > 0 {
+// 			restorePreviousBoardState()
+// 			return -1
+// 		} else {
+// 			return 1
+// 		}
+// 	} else {
+// 		// capture moves
+// 		// make sure move is capture
+// 		if getMoveCaptureFlag(move) > 0 {
+// 			makeMove(move, allMoves)
+// 		} else {
+// 			return -1
+// 		}
+// 	}
+// 	return 1
+// }
