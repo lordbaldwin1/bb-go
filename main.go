@@ -2016,11 +2016,11 @@ func restorePreviousBoardState(state BoardStateCopy) {
 func main() {
 	initAll()
 
-	parseFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ")
+	parseFEN(START_POSITION)
 	printBoard()
 
 	startTime := getTimeMS()
-	perftDriver(3)
+	perftDriver(6)
 	endTime := getTimeMS()
 	fmt.Printf("\n\n Time elapsed: %dms\n", endTime-startTime)
 	fmt.Printf("\n nodes: %d\n", nodesCount)
