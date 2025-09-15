@@ -2047,6 +2047,20 @@ func perftTest(depth int) {
 /*********************************************************\
 ===========================================================
 
+                        Search
+
+===========================================================
+\*********************************************************/
+
+func searchPosition(depth int) {
+	var _ = depth
+	// best move placeholder
+	fmt.Println("bestmove d2d4")
+}
+
+/*********************************************************\
+===========================================================
+
                         UCI
 
 ===========================================================
@@ -2128,6 +2142,7 @@ func parsePosition(command string) {
 			makeMove(move, allMoves)
 		}
 	}
+	printBoard()
 }
 
 func parseGo(command string) {
@@ -2148,9 +2163,8 @@ func parseGo(command string) {
 		depth = 6
 	}
 
-	// add search position function
-
-	fmt.Println("      depth:", depth)
+	// search position placeholder
+	searchPosition(depth)
 }
 
 func uciLoop() {
@@ -2215,9 +2229,5 @@ func initAll() {
 
 func main() {
 	initAll()
-
-	// Test consecutive promotions: white g7->g8, then black h2->h1 (clear h1 first)
-	parsePosition("position fen r2pkp2/pPppqpPP/bn2pnp1/3PN3/1p2P3/2N2Q1p/PpPBBP1p/R3K3 b KQkq - 0 1 moves h2h1r h7h8q")
-	printBoard()
-	parseGo("go depth 5")
+	uciLoop()
 }
