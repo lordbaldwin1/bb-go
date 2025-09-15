@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
+	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -1404,7 +1408,7 @@ func makeMove(move, moveFlag int) int {
 		castle &= castlingRights[sourceSquare]
 		castle &= castlingRights[targetSquare]
 
-		// check if king is in check (WIP)!
+		// check if king is in check
 		side ^= 1
 
 		if side == WHITE && isSquareAttacked(getLeastSignificantFirstBitIndex(bitboards[k]), side) > 0 {
@@ -2083,7 +2087,6 @@ func parseMove(moveString string) int {
 			return move
 		}
 	}
-	fmt.Println("move not found?")
 	return 0
 }
 
@@ -2127,14 +2130,66 @@ func parsePosition(command string) {
 	}
 }
 
-// func parseGo(command string) {
-// 	args := strings.Split(command, " ")
-// 	if len(args) < 3 {
-// 		return
-// 	}
-// 	depth := -1
+func parseGo(command string) {
+	args := strings.Split(command, " ")
+	if len(args) < 3 {
+		return
+	}
+	var depth int = -1
 
-// }
+	if depthIdx := slices.Index(args, "depth"); depthIdx != -1 {
+		convertedDepth, err := strconv.Atoi(args[depthIdx+1])
+		if err != nil {
+			fmt.Println("failed to convert depth to int")
+		}
+		depth = convertedDepth
+	} else {
+		// time controls placeholder
+		depth = 6
+	}
+
+	// add search position function
+
+	fmt.Println("      depth:", depth)
+}
+
+func uciLoop() {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	fmt.Printf("id name bbgo\n")
+	fmt.Printf("id author lordbaldwin1\n")
+	fmt.Printf("uciok\n")
+
+	// main loop
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		if line == "" {
+			continue
+		}
+
+		switch {
+		case line == "isready":
+			fmt.Println("readyok")
+		case strings.HasPrefix(line, "position"):
+			parsePosition(line)
+		case line == "ucinewgame":
+			parsePosition("position startpos")
+		case strings.HasPrefix(line, "go"):
+			parseGo(line)
+		case line == "quit":
+			return
+		case line == "uci":
+			fmt.Printf("id name bbgo\n")
+			fmt.Printf("id author lordbaldwin1\n")
+			fmt.Printf("uciok\n")
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("Error reading input: %v", err)
+	}
+}
 
 /*********************************************************\
 ===========================================================
@@ -2162,6 +2217,7 @@ func main() {
 	initAll()
 
 	// Test consecutive promotions: white g7->g8, then black h2->h1 (clear h1 first)
-	parsePosition("position fen r3k2r/pPppqpP1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBP1p/R3K3 b KQkq - 0 1 moves h2h1r b2b3")
+	parsePosition("position fen r2pkp2/pPppqpPP/bn2pnp1/3PN3/1p2P3/2N2Q1p/PpPBBP1p/R3K3 b KQkq - 0 1 moves h2h1r h7h8q")
 	printBoard()
+	parseGo("go depth 5")
 }

@@ -156,6 +156,7 @@ var _ = rookMasks
 var _ = bishopAttacks
 var _ = rookAttacks
 var _ = onlyCaptures
+var _ = perftTest
 
 // func makeMove(move, moveFlag int) int {
 // 	// quiet moves
