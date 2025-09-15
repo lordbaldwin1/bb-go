@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -1521,6 +1522,7 @@ func generateMoves(moveList *Moves) {
 					if targetSquare <= h1 && getBit(occupancies[BOTH], targetSquare) == 0 {
 						if sourceSquare >= a2 && sourceSquare <= h2 {
 							// black pawn promotions
+							fmt.Println("herepawnprom")
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, q, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, r, 0, 0, 0, 0))
 							addMove(moveList, encodeMove(sourceSquare, targetSquare, piece, b, 0, 0, 0, 0))
@@ -2065,25 +2067,83 @@ func parseMove(moveString string) int {
 
 			if getMovePromotedPiece(move) > 0 {
 				if len(moveString) < 5 {
+					fmt.Println("here2")
 					return 0
 				}
+				fmt.Println(moveString)
 				if (promotedPiece == Q || promotedPiece == q) && moveString[4] == 'q' {
 					return move
 				} else if (promotedPiece == R || promotedPiece == r) && moveString[4] == 'r' {
+					fmt.Println("here?")
 					return move
 				} else if (promotedPiece == B || promotedPiece == b) && moveString[4] == 'b' {
 					return move
 				} else if (promotedPiece == N || promotedPiece == n) && moveString[4] == 'n' {
 					return move
 				}
+				fmt.Println("here3")
 				continue
 			}
 
 			return move
 		}
 	}
+	fmt.Println("move not found?")
 	return 0
 }
+
+func parsePosition(command string) {
+	args := strings.Split(command, " ")
+	if len(args) < 2 {
+		return
+	}
+
+	switch args[1] {
+	case "startpos":
+		parseFEN(START_POSITION)
+	case "fen":
+		// Find where moves section starts (if present)
+		movesIdx := slices.Index(args, "moves")
+		var fenEnd int
+		if movesIdx != -1 {
+			fenEnd = movesIdx
+		} else {
+			fenEnd = len(args)
+		}
+
+		if fenEnd < 8 {
+			return
+		}
+
+		fen := strings.Join(args[2:8], " ")
+		parseFEN(fen)
+	default:
+		parseFEN(START_POSITION)
+	}
+
+	movesIdx := slices.Index(args, "moves")
+	if movesIdx != -1 {
+		fmt.Println(args[movesIdx+1:])
+		for _, moveStr := range args[movesIdx+1:] {
+			fmt.Println(moveStr)
+			move := parseMove(moveStr)
+			if move == 0 {
+				fmt.Println("move == 0")
+				break
+			}
+			makeMove(move, allMoves)
+		}
+	}
+}
+
+// func parseGo(command string) {
+// 	args := strings.Split(command, " ")
+// 	if len(args) < 3 {
+// 		return
+// 	}
+// 	depth := -1
+
+// }
 
 /*********************************************************\
 ===========================================================
@@ -2110,14 +2170,7 @@ func initAll() {
 func main() {
 	initAll()
 
-	parseFEN("r3k2r/pPppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
-	printBoard()
-
-	move := parseMove("b7b8q")
-	if move > 0 {
-		makeMove(move, allMoves)
-	} else {
-		fmt.Println("illegal move!")
-	}
+	// Test consecutive promotions: white g7->g8, then black h2->h1 (clear h1 first)
+	parsePosition("position fen r3k2r/pPppqpP1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBP1p/R3K3 w KQkq - 0 1 moves g7g8q h2h1r")
 	printBoard()
 }

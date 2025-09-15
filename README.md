@@ -3,7 +3,7 @@
 A bitboard-based chess engine implementation in Go!
 
 ## TODO
-- make sure checking if king is in check is working properly
+- think about error handling in parsePosition for UCI protocol
 
 ## Building and Running
 
