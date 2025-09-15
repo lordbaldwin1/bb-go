@@ -155,6 +155,7 @@ var _ = bishopMasks
 var _ = rookMasks
 var _ = bishopAttacks
 var _ = rookAttacks
+var _ = onlyCaptures
 
 // func makeMove(move, moveFlag int) int {
 // 	// quiet moves

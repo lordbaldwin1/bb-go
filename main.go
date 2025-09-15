@@ -1880,10 +1880,16 @@ func addMove(moveList *Moves, move int) {
 
 // for UCI
 func printMove(move int) {
-	fmt.Printf("%s%s%c\n",
-		SquareToCoordinates[getMoveSourceSquare(move)],
-		SquareToCoordinates[getMoveTargetSquare(move)],
-		promotedPieces[getMovePromotedPiece(move)])
+	if getMovePromotedPiece(move) > 0 {
+		fmt.Printf("%s%s%c\n",
+			SquareToCoordinates[getMoveSourceSquare(move)],
+			SquareToCoordinates[getMoveTargetSquare(move)],
+			promotedPieces[getMovePromotedPiece(move)])
+	} else {
+		fmt.Printf("%s%s\n",
+			SquareToCoordinates[getMoveSourceSquare(move)],
+			SquareToCoordinates[getMoveTargetSquare(move)])
+	}
 }
 
 // for debugging
@@ -1941,27 +1947,37 @@ func printMoveList(moveList *Moves) {
 /*********************************************************\
 ===========================================================
 
-                        Init all
-
-===========================================================
-\*********************************************************/
-
-func initAll() {
-	initLeapersAttacks()
-	initSlidersAttacks(BISHOP)
-	initSlidersAttacks(ROOK)
-}
-
-/*********************************************************\
-===========================================================
-
-                        Main driver
+                        Perft
 
 ===========================================================
 \*********************************************************/
 
 func getTimeMS() int64 {
 	return time.Now().UnixMilli()
+}
+
+func copyBoardState(state *BoardStateCopy) {
+	copy(state.bitboards[:], bitboards[:])
+	copy(state.occupancies[:], occupancies[:])
+	state.side = side
+	state.enpassant = enpassant
+	state.castle = castle
+}
+
+func restorePreviousBoardState(state BoardStateCopy) {
+	copy(bitboards[:], state.bitboards[:])
+	copy(occupancies[:], state.occupancies[:])
+	side = state.side
+	enpassant = state.enpassant
+	castle = state.castle
+}
+
+type BoardStateCopy struct {
+	bitboards   [12]uint64
+	occupancies [3]uint64
+	side        int
+	enpassant   int
+	castle      int
 }
 
 var nodesCount uint64
@@ -1989,39 +2005,119 @@ func perftDriver(depth int) {
 	}
 }
 
-type BoardStateCopy struct {
-	bitboards   [12]uint64
-	occupancies [3]uint64
-	side        int
-	enpassant   int
-	castle      int
+func perftTest(depth int) {
+	fmt.Printf("\n     Performance Test\n\n")
+	var moveList Moves
+	generateMoves(&moveList)
+
+	startTime := getTimeMS()
+	for moveCount := 0; moveCount < moveList.count; moveCount++ {
+		var copy BoardStateCopy
+		copyBoardState(&copy)
+
+		if makeMove(moveList.moves[moveCount], allMoves) != 1 {
+			continue
+		}
+
+		var cumulativeNodes uint64 = nodesCount
+
+		perftDriver(depth - 1)
+
+		oldNodes := nodesCount - cumulativeNodes
+
+		restorePreviousBoardState(copy)
+
+		fmt.Printf("     move: %s%s%c   nodes: %d\n",
+			SquareToCoordinates[getMoveSourceSquare(moveList.moves[moveCount])],
+			SquareToCoordinates[getMoveTargetSquare(moveList.moves[moveCount])],
+			promotedPieces[getMovePromotedPiece(moveList.moves[moveCount])],
+			oldNodes)
+	}
+	endTime := getTimeMS()
+	fmt.Printf("\n     Depth: %d\n", depth)
+	fmt.Printf("     Nodes: %d\n", nodesCount)
+	fmt.Printf("      Time: %dms\n\n", endTime-startTime)
 }
 
-func copyBoardState(state *BoardStateCopy) {
-	copy(state.bitboards[:], bitboards[:])
-	copy(state.occupancies[:], occupancies[:])
-	state.side = side
-	state.enpassant = enpassant
-	state.castle = castle
+/*********************************************************\
+===========================================================
+
+                        UCI
+
+===========================================================
+\*********************************************************/
+
+// format for moves "e7e8q" or "e2e3"
+func parseMove(moveString string) int {
+	var moveList Moves
+	generateMoves(&moveList)
+
+	sourceSquare := (moveString[0] - 'a') + (8-(moveString[1]-'0'))*8
+	targetSquare := (moveString[2] - 'a') + (8-(moveString[3]-'0'))*8
+
+	for moveCount := 0; moveCount < moveList.count; moveCount++ {
+		// get move from generated moves based on source/target squares
+		move := moveList.moves[moveCount]
+
+		if sourceSquare == byte(getMoveSourceSquare(move)) && targetSquare == byte(getMoveTargetSquare(move)) {
+			// possibly useless? only function is to check if moveString is invalid
+			promotedPiece := getMovePromotedPiece(move)
+
+			if getMovePromotedPiece(move) > 0 {
+				if len(moveString) < 5 {
+					return 0
+				}
+				if (promotedPiece == Q || promotedPiece == q) && moveString[4] == 'q' {
+					return move
+				} else if (promotedPiece == R || promotedPiece == r) && moveString[4] == 'r' {
+					return move
+				} else if (promotedPiece == B || promotedPiece == b) && moveString[4] == 'b' {
+					return move
+				} else if (promotedPiece == N || promotedPiece == n) && moveString[4] == 'n' {
+					return move
+				}
+				continue
+			}
+
+			return move
+		}
+	}
+	return 0
 }
 
-func restorePreviousBoardState(state BoardStateCopy) {
-	copy(bitboards[:], state.bitboards[:])
-	copy(occupancies[:], state.occupancies[:])
-	side = state.side
-	enpassant = state.enpassant
-	castle = state.castle
+/*********************************************************\
+===========================================================
+
+                        Init all
+
+===========================================================
+\*********************************************************/
+
+func initAll() {
+	initLeapersAttacks()
+	initSlidersAttacks(BISHOP)
+	initSlidersAttacks(ROOK)
 }
+
+/*********************************************************\
+===========================================================
+
+                        Main driver
+
+===========================================================
+\*********************************************************/
 
 func main() {
 	initAll()
 
-	parseFEN(START_POSITION)
+	parseFEN("r3k2r/pPppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ")
 	printBoard()
 
-	startTime := getTimeMS()
-	perftDriver(6)
-	endTime := getTimeMS()
-	fmt.Printf("\n\n Time elapsed: %dms\n", endTime-startTime)
-	fmt.Printf("\n nodes: %d\n", nodesCount)
+	move := parseMove("b7b8q")
+	if move > 0 {
+		makeMove(move, allMoves)
+	} else {
+		fmt.Println("illegal move!")
+	}
+	printBoard()
 }
